@@ -10,7 +10,8 @@ const FREQUENCY_CHANGE_RATIO = 0.18;
 const FREQUENCY_CHANGE_ABSOLUTE = 2;
 const MASK_URL = "/assets/birds/masks.json?v=20260715-blackbird2-cutout";
 const GRID_STRIDE = 4;
-const COLLAGE_PAD_CELLS = 2;
+const COLLAGE_PAD_CELLS = 4;
+const LABEL_TOP_GAP_CELLS = 2;
 
 let birdMasks = {};
 let masksReady = false;
@@ -320,18 +321,21 @@ function packTiles(tiles, width, height) {
     }
 
     if (tile.showNames) {
-      const labelY0 = Math.floor((y + tile.imageHeight) / GRID_STRIDE);
+      const labelY0 = Math.max(
+        0,
+        Math.floor((y + tile.imageHeight) / GRID_STRIDE) - LABEL_TOP_GAP_CELLS,
+      );
       const labelY1 = Math.min(
         gridHeight - 1,
         Math.floor((y + tile.fullHeight) / GRID_STRIDE),
       );
       const labelX0 = Math.max(
         0,
-        Math.floor((x + tile.fullWidth * 0.12) / GRID_STRIDE),
+        Math.floor(x / GRID_STRIDE),
       );
       const labelX1 = Math.min(
         gridWidth - 1,
-        Math.floor((x + tile.fullWidth * 0.88) / GRID_STRIDE),
+        Math.floor((x + tile.fullWidth) / GRID_STRIDE),
       );
       for (let gy = labelY0; gy <= labelY1; gy += 1) {
         const offset = gy * gridWidth;
@@ -364,7 +368,9 @@ function packTiles(tiles, width, height) {
     if (tile.showNames) {
       const labelY0 = Math.max(
         0,
-        Math.floor((y + tile.imageHeight) / GRID_STRIDE) - COLLAGE_PAD_CELLS,
+        Math.floor((y + tile.imageHeight) / GRID_STRIDE) -
+          COLLAGE_PAD_CELLS -
+          LABEL_TOP_GAP_CELLS,
       );
       const labelY1 = Math.min(
         gridHeight - 1,
@@ -372,11 +378,11 @@ function packTiles(tiles, width, height) {
       );
       const labelX0 = Math.max(
         0,
-        Math.floor((x + tile.fullWidth * 0.12) / GRID_STRIDE) - COLLAGE_PAD_CELLS,
+        Math.floor(x / GRID_STRIDE) - COLLAGE_PAD_CELLS,
       );
       const labelX1 = Math.min(
         gridWidth - 1,
-        Math.floor((x + tile.fullWidth * 0.88) / GRID_STRIDE) + COLLAGE_PAD_CELLS,
+        Math.floor((x + tile.fullWidth) / GRID_STRIDE) + COLLAGE_PAD_CELLS,
       );
       for (let gy = labelY0; gy <= labelY1; gy += 1) {
         const offset = gy * gridWidth;
