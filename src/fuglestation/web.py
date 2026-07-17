@@ -607,6 +607,14 @@ def api_wall(
         min_confidence,
         since_analyzed_at=since_analyzed_at,
     )
+    using_recent_window = True
+    if not species_summary:
+        species_summary = get_species_summary(
+            database_path,
+            wall_limit,
+            min_confidence,
+        )
+        using_recent_window = False
 
     return {
         "count": len(species_summary),
@@ -614,6 +622,7 @@ def api_wall(
         "min_confidence": min_confidence,
         "limit": wall_limit,
         "recent_minutes": wall_recent_minutes,
+        "using_recent_window": using_recent_window,
         "show_names": wall_config["show_names"],
         "show_latin_names": wall_config["show_latin_names"],
         "show_footer": wall_config["show_footer"],

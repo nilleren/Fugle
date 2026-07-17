@@ -104,9 +104,9 @@ function renderEmptyState() {
   const empty = document.createElement("section");
   empty.className = "empty-wall";
   empty.innerHTML = `
-    <p class="eyebrow">Ingen fund endnu</p>
-    <h2>Stationen venter på de første fuglestemmer</h2>
-    <p>Start stationen fra dashboardet, eller kør en enkelt cyklus, så fyldes væggen her.</p>
+    <p class="eyebrow">Ingen fugle i visningen</p>
+    <h2>Stationen venter på nye fuglestemmer</h2>
+    <p>Start stationen fra settings, eller juster filteret, så fyldes væggen her.</p>
   `;
   collageEl.append(empty);
 }
