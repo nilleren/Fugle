@@ -1,0 +1,7 @@
+En klassisk ornitologisk plansche med {danish_name} ({scientific_name}, {common_name}), udført som en detaljeret håndmalet naturhistorisk illustration i gouache og akvarel.
+
+Fuglen skal være anatomisk præcis med naturtro fjerdragt, fine penselstrøg og afdæmpede naturlige farver.
+
+Vis fuglen {pose}. Kompositionen skal ligne en vintage europæisk felthåndbog om fugle, med varm råhvid papirbaggrund, ingen skygger, ingen landskabsscene og ingen tekst.
+
+Vigtigt for posituren: {pose_instruction}

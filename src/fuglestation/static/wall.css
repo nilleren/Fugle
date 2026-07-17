@@ -1,0 +1,265 @@
+:root {
+  color-scheme: light;
+  --bg: #ebd09d;
+  --text: #2b2117;
+  --muted: rgba(43, 33, 23, 0.62);
+  --ink: #2b2117;
+  --line: rgba(43, 33, 23, 0.22);
+  --display-font: "Bodoni 72", "Libre Bodoni", "Bodoni MT", Didot, Georgia, serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--display-font);
+}
+
+.wall {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 18px;
+  height: 100vh;
+  padding: clamp(18px, 3vw, 42px);
+}
+
+.wall[data-show-footer="false"] {
+  grid-template-rows: auto 1fr;
+}
+
+.wall-header,
+.wall-footer {
+  align-items: end;
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  position: relative;
+  z-index: 2;
+}
+
+.wall-header {
+  justify-content: center;
+  text-align: center;
+}
+
+.eyebrow {
+  color: var(--muted);
+  font-family: var(--display-font);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  margin: 0 0 8px;
+  text-transform: uppercase;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+h1 {
+  font-size: clamp(40px, 7vw, 104px);
+  font-weight: 400;
+  line-height: 0.92;
+}
+
+.bird-collage {
+  align-content: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(16px, 2.4vw, 38px);
+  justify-content: center;
+  min-height: 0;
+  padding: 8px 0;
+}
+
+.bird-collage[data-layout="packed"] {
+  display: block;
+  position: relative;
+}
+
+.bird-card {
+  --card-size: 180px;
+  --image-width: 100%;
+  --image-height: auto;
+  --rotation: 0deg;
+  --hue: 120;
+  animation: rise 700ms ease both;
+  animation-delay: var(--delay);
+  color: var(--ink);
+  display: grid;
+  grid-template-rows: auto auto;
+  overflow: visible;
+  padding: 0;
+  transform: rotate(var(--rotation));
+  width: min(var(--card-size), 28vw);
+}
+
+.bird-collage[data-layout="packed"] .bird-card {
+  position: absolute;
+  width: var(--image-width);
+}
+
+.bird-mark {
+  align-self: center;
+  background:
+    radial-gradient(circle at 64% 42%, hsla(var(--hue), 40%, 28%, 0.22) 0 11%, transparent 12%),
+    linear-gradient(135deg, hsla(var(--hue), 46%, 32%, 0.92), hsla(var(--hue), 34%, 20%, 0.94));
+  border-radius: 58% 42% 56% 44%;
+  color: rgba(246, 241, 220, 0.92);
+  display: grid;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: clamp(28px, 4vw, 62px);
+  font-weight: 800;
+  justify-self: center;
+  min-height: 45%;
+  place-items: center;
+  width: 82%;
+}
+
+.bird-collage[data-layout="packed"] .bird-mark {
+  height: var(--image-height);
+  width: var(--image-width);
+}
+
+.bird-mark[data-has-image="true"] {
+  background: transparent;
+  border-radius: 0;
+  min-height: 0;
+  overflow: visible;
+  width: 100%;
+}
+
+.bird-mark img {
+  display: block;
+  height: auto;
+  object-fit: contain;
+  width: 100%;
+}
+
+.wall[data-show-shadows="true"] .bird-mark[data-has-image="true"] img {
+  filter:
+    drop-shadow(0 12px 10px rgba(43, 33, 23, 0.2))
+    drop-shadow(0 3px 2px rgba(43, 33, 23, 0.16));
+}
+
+.bird-collage[data-layout="packed"] .bird-mark img {
+  height: 100%;
+  width: 100%;
+}
+
+.bird-card h2 {
+  font-size: clamp(16px, 1.5vw, 24px);
+  font-weight: 400;
+  line-height: 1.06;
+  text-align: center;
+}
+
+.bird-name-primary,
+.bird-name-secondary {
+  display: block;
+}
+
+.bird-name-primary {
+  font-family: var(--display-font);
+  font-size: calc(1em * var(--name-scale, 1));
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  overflow: visible;
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+
+.bird-name-primary::first-letter {
+  font-size: 1.22em;
+}
+
+.bird-name-secondary {
+  color: var(--muted);
+  font-family: var(--display-font);
+  font-size: 0.58em;
+  font-style: italic;
+  font-weight: 400;
+  line-height: 1.25;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+}
+
+.empty-wall {
+  max-width: 760px;
+  text-align: center;
+}
+
+.empty-wall h2 {
+  font-size: clamp(32px, 6vw, 80px);
+  font-weight: 400;
+  line-height: 1;
+}
+
+.empty-wall p:last-child,
+.loading {
+  color: var(--muted);
+  font-family: var(--display-font);
+  font-size: clamp(16px, 2vw, 24px);
+  margin-top: 14px;
+}
+
+.wall-footer {
+  align-items: center;
+  color: var(--muted);
+  font-size: clamp(13px, 1.3vw, 18px);
+}
+
+.wall[data-show-footer="false"] .wall-footer {
+  display: none;
+}
+
+#wall-updated {
+  margin-left: auto;
+}
+
+.wall-footer a {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--text);
+  padding: 8px 14px;
+  text-decoration: none;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px) rotate(var(--rotation));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) rotate(var(--rotation));
+  }
+}
+
+@media (max-width: 760px) {
+  body {
+    overflow: auto;
+  }
+
+  .wall {
+    height: auto;
+    min-height: 100vh;
+  }
+
+  .wall-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .bird-card {
+    width: min(var(--card-size), 42vw);
+  }
+}

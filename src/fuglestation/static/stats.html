@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="da">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Fuglestatistik</title>
+    <link rel="stylesheet" href="/static/stats.css?v=20260715-mobile-stats" />
+  </head>
+  <body>
+    <main class="stats-page">
+      <header class="stats-header">
+        <h1 id="stats-title">Fuglene i haven</h1>
+        <div class="period-picker" aria-label="Vælg statistikperiode">
+          <button type="button" data-days="1">Seneste døgn</button>
+          <button type="button" data-days="7">Seneste uge</button>
+          <button type="button" data-days="30" data-active="true">Seneste måned</button>
+          <button type="button" data-days="0">Al tid</button>
+        </div>
+      </header>
+
+      <section class="overview" aria-label="Overblik">
+        <div>
+          <span>Hørte fugle</span>
+          <strong id="total-detections">-</strong>
+        </div>
+        <div>
+          <span>Arter</span>
+          <strong id="total-species">-</strong>
+        </div>
+        <div>
+          <span>Optagelser</span>
+          <strong id="total-recordings">-</strong>
+        </div>
+      </section>
+
+      <section class="panel" aria-label="Hyppigste fugle">
+        <div class="section-heading">
+          <h2>Hyppigste fugle</h2>
+          <span id="species-window" hidden></span>
+        </div>
+        <div id="top-species" class="top-species"></div>
+      </section>
+
+      <section class="panel" aria-label="Døgnrytme">
+        <div class="section-heading">
+          <h2>Døgnrytme</h2>
+          <span id="peak-hour">-</span>
+        </div>
+        <div id="hour-chart" class="hour-chart"></div>
+      </section>
+
+      <footer class="stats-footer">
+        <a href="/settings/">Dashboard</a>
+        <a href="/">Vægvisning</a>
+        <span id="updated-at">-</span>
+      </footer>
+    </main>
+
+    <script src="/static/stats.js?v=20260717-site-title"></script>
+  </body>
+</html>

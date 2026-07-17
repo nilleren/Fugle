@@ -1,0 +1,40 @@
+[site]
+title = "Fuglene i haven"
+
+[audio]
+# Device 0 is Windows' default input device. Run with --list to find another.
+device = 0
+duration_seconds = 10
+sample_rate = 44100
+output_dir = "recordings"
+
+[birdnet]
+# Approximate center of Denmark. Use config.toml for a private fixed site.
+use_geo = true
+latitude = 56.0
+longitude = 10.0
+# Leave week empty to use the current ISO week automatically.
+week = 0
+geo_min_confidence = 0.05
+
+[database]
+path = "data/fuglestation.db"
+
+[schedule]
+# Run immediately when started, then choose delay before the next cycle.
+first_phase_seconds = 120
+first_phase_interval_seconds = 30
+second_phase_seconds = 600
+second_phase_interval_seconds = 60
+steady_interval_seconds = 900
+quiet_start = "22:00"
+quiet_end = "05:00"
+
+[wall]
+max_species = 20
+recent_minutes = 1400
+show_names = true
+size_mode = "common"
+show_footer = false
+show_latin_names = false
+show_shadows = true

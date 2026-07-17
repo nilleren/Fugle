@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="da">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Fuglestation</title>
+    <link rel="stylesheet" href="/static/styles.css?v=20260715-wall-latin-toggle" />
+  </head>
+  <body>
+    <main class="page">
+      <header class="topbar">
+        <div>
+          <h1>Fuglestation</h1>
+          <p id="status">Indlæser seneste detektioner...</p>
+        </div>
+        <div class="actions">
+          <label class="toggle">
+            <input id="auto-refresh" type="checkbox" checked />
+            Auto
+          </label>
+          <a class="button-link" href="/">Vægvisning</a>
+          <a class="button-link" href="/stats">Statistik</a>
+          <button id="refresh-button" type="button">Opdater</button>
+        </div>
+      </header>
+
+      <section class="scheduler-controls" aria-label="Scheduler kontrol">
+        <button id="start-scheduler-button" type="button">Start station</button>
+        <button id="stop-scheduler-button" type="button" class="secondary">
+          Stop station
+        </button>
+        <p id="scheduler-control-message" class="muted">Scheduler styres lokalt.</p>
+      </section>
+
+      <section class="station-status" aria-label="Driftsstatus">
+        <div>
+          <span class="label">Drift</span>
+          <strong id="station-state">Ukendt</strong>
+          <p id="station-message" class="muted">Ingen scheduler-status endnu.</p>
+        </div>
+        <div>
+          <span class="label">Sidste cyklus</span>
+          <strong id="last-cycle">-</strong>
+        </div>
+        <div>
+          <span class="label">Næste optagelse</span>
+          <strong id="next-cycle">-</strong>
+        </div>
+      </section>
+
+      <section class="config-panel" aria-label="Konfiguration">
+        <div class="section-heading">
+          <h2>Konfiguration</h2>
+          <span id="config-path" class="muted">Indlæser config.toml...</span>
+        </div>
+        <div class="config-grid">
+          <div>
+            <span class="label">Mikrofon</span>
+            <strong id="config-device">-</strong>
+            <p id="config-audio" class="muted">-</p>
+          </div>
+          <div>
+            <span class="label">BirdNET</span>
+            <strong id="config-geo">-</strong>
+            <p id="config-birdnet" class="muted">-</p>
+          </div>
+          <div>
+            <span class="label">Tidsplan</span>
+            <strong id="config-schedule">-</strong>
+            <p id="config-quiet" class="muted">-</p>
+          </div>
+          <div>
+            <span class="label">Database</span>
+            <strong id="config-database">-</strong>
+          </div>
+        </div>
+        <form id="runtime-settings-form" class="settings-form">
+          <label>
+            Sidetitel
+            <input
+              id="site-title-setting"
+              type="text"
+              maxlength="80"
+              required
+            />
+          </label>
+          <label>
+            Optagelængde
+            <input
+              id="duration-setting"
+              type="number"
+              min="1"
+              max="300"
+              step="1"
+              required
+            />
+          </label>
+          <label>
+            BirdNET confidence
+            <input
+              id="geo-confidence-setting"
+              type="number"
+              min="0"
+              max="1"
+              step="0.01"
+              required
+            />
+          </label>
+          <label>
+            Natpause start
+            <input id="quiet-start-setting" type="time" required />
+          </label>
+          <label>
+            Natpause slut
+            <input id="quiet-end-setting" type="time" required />
+          </label>
+          <label>
+            Maks fugle på væggen
+            <input
+              id="wall-max-species-setting"
+              type="number"
+              min="1"
+              max="60"
+              step="1"
+              required
+            />
+          </label>
+          <label>
+            Væg-tidsvindue, minutter
+            <input
+              id="wall-recent-minutes-setting"
+              type="number"
+              min="1"
+              max="10080"
+              step="1"
+              required
+            />
+          </label>
+          <label class="checkbox-setting">
+            <input id="wall-show-names-setting" type="checkbox" />
+            Vis fuglenavne på væggen
+          </label>
+          <label class="checkbox-setting">
+            <input id="wall-show-latin-names-setting" type="checkbox" />
+            Vis latinske navne
+          </label>
+          <label class="checkbox-setting">
+            <input id="wall-show-footer-setting" type="checkbox" />
+            Vis bundtekst på væggen
+          </label>
+          <label class="checkbox-setting">
+            <input id="wall-show-shadows-setting" type="checkbox" />
+            Vis skygge på fugle
+          </label>
+          <label>
+            Fuglestørrelse
+            <select id="wall-size-mode-setting">
+              <option value="equal">Ens størrelse</option>
+              <option value="common">Flest fund størst</option>
+              <option value="rare">Sjældnest størst</option>
+            </select>
+          </label>
+          <button id="save-runtime-settings-button" type="submit">Gem indstillinger</button>
+          <button id="reset-default-settings-button" type="button" class="secondary">
+            Nulstil til default
+          </button>
+        </form>
+        <p id="runtime-settings-status" class="muted">
+          Ændringer bruges ved næste optagelse/analyse. Genstart scheduler hvis den kører.
+        </p>
+      </section>
+
+      <section class="audio-devices-panel" aria-label="Mikrofoner">
+        <div class="section-heading">
+          <h2>Mikrofoner</h2>
+          <div class="section-actions">
+            <span id="audio-devices-status" class="muted">Indlæser mikrofoner...</span>
+            <button id="test-recording-button" type="button">Optag test</button>
+          </div>
+        </div>
+        <p id="test-recording-status" class="muted">Ingen testoptagelse endnu.</p>
+        <p id="audio-device-save-status" class="muted">Mikrofonvalg gemmes i config.toml.</p>
+        <div id="audio-devices-list" class="audio-devices-list"></div>
+      </section>
+
+      <section class="controls" aria-label="Filtre">
+        <label for="confidence-filter">Minimum confidence</label>
+        <input
+          id="confidence-filter"
+          type="range"
+          min="0"
+          max="1"
+          step="0.01"
+          value="0.05"
+        />
+        <output id="confidence-value" for="confidence-filter">5%</output>
+      </section>
+
+      <section class="summary" aria-label="Status">
+        <div>
+          <span class="label">Detektioner</span>
+          <strong id="detection-count">0</strong>
+        </div>
+        <div>
+          <span class="label">Arter</span>
+          <strong id="species-count">0</strong>
+        </div>
+        <div>
+          <span class="label">Database</span>
+          <strong id="database-path">-</strong>
+        </div>
+      </section>
+
+      <section class="species-wrap" aria-label="Artssammendrag">
+        <h2>Artssammendrag</h2>
+        <div id="species-summary" class="species-list"></div>
+      </section>
+
+      <section class="table-wrap" aria-label="Seneste detektioner">
+        <h2>Seneste detektioner</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Art</th>
+              <th>Confidence</th>
+              <th>Tid i lydfil</th>
+              <th>Analyseret</th>
+              <th>Optagelse</th>
+            </tr>
+          </thead>
+          <tbody id="detections-body"></tbody>
+        </table>
+        <p id="empty-state" class="empty" hidden>Ingen detektioner i databasen endnu.</p>
+      </section>
+    </main>
+
+    <script src="/static/app.js?v=20260717-site-title"></script>
+  </body>
+</html>

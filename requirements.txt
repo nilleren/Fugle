@@ -1,0 +1,6 @@
+birdnet==0.2.16
+fastapi==0.125.0
+numpy==2.3.1
+openai>=2.0.0
+sounddevice==0.5.2
+uvicorn==0.38.0

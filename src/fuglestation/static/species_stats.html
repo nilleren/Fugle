@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="da">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Artsstatistik</title>
+    <link rel="stylesheet" href="/static/stats.css?v=20260715-species-stats" />
+  </head>
+  <body>
+    <main class="stats-page species-page">
+      <header class="species-hero">
+        <a class="back-link" href="/stats">Tilbage</a>
+        <div id="species-hero-image" class="species-hero-image"></div>
+        <h1 id="species-title">Indlæser...</h1>
+        <p id="species-latin" class="species-hero-latin"></p>
+      </header>
+
+      <section class="overview" aria-label="Artsoversigt">
+        <div>
+          <span>Fund</span>
+          <strong id="species-detections">-</strong>
+        </div>
+        <div>
+          <span>Optagelser</span>
+          <strong id="species-recordings">-</strong>
+        </div>
+        <div>
+          <span>Bedste match</span>
+          <strong id="species-confidence">-</strong>
+        </div>
+      </section>
+
+      <section class="species-timeline" aria-label="Første og seneste optagelse">
+        <div>
+          <span>Første optagelse</span>
+          <strong id="species-first">-</strong>
+        </div>
+        <div>
+          <span>Seneste optagelse</span>
+          <strong id="species-latest">-</strong>
+        </div>
+      </section>
+
+      <section class="panel" aria-label="Fund hen over døgnets timer">
+        <div class="section-heading">
+          <h2>Døgnets timer</h2>
+          <span id="species-peak-hour">-</span>
+        </div>
+        <div id="species-hour-chart" class="hour-chart"></div>
+      </section>
+
+      <section class="panel" aria-label="Fund hen over året">
+        <div class="section-heading">
+          <h2>Året</h2>
+          <span id="species-peak-month">-</span>
+        </div>
+        <div id="species-year-chart" class="year-chart"></div>
+      </section>
+
+      <footer class="stats-footer">
+        <a href="/stats">Statistik</a>
+        <a href="/">Vægvisning</a>
+        <span id="updated-at">-</span>
+      </footer>
+    </main>
+
+    <script src="/static/species_stats.js?v=20260717-site-title"></script>
+  </body>
+</html>

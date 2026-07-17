@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=70"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fuglestation"
+version = "0.1.0"
+description = "Lokal fuglestation med lydoptagelse og senere BirdNET-analyse."
+requires-python = ">=3.11"
+dependencies = []
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+fuglestation = ["danish_species_names.json"]
