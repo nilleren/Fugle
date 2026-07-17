@@ -501,6 +501,26 @@ Eller hente mulige arter fra eBird omkring koordinaterne i `config.toml`:
 python -m fuglestation.generate_bird_images --source ebird --ebird-radius-km 25 --ebird-back-days 30 --dry-run
 ```
 
+Byg en helarsliste fra BirdNETs geografimodel og se hvilke arter der mangler
+billeder:
+
+```powershell
+python -m fuglestation.build_year_round_candidates
+```
+
+Scriptet skriver lokale filer i `data/`:
+
+```text
+data/birdnet_year_round_candidates.json
+data/birdnet_year_round_missing_images.json
+```
+
+Mangellisten kan bruges direkte som kandidatliste til billedgenerering:
+
+```powershell
+python -m fuglestation.generate_bird_images --candidates data\birdnet_year_round_missing_images.json --prompt-file prompts\bird_image_prompt.txt --dry-run
+```
+
 Naar billederne er genereret, kan de klippes fri og maskerne genbygges:
 
 ```powershell
