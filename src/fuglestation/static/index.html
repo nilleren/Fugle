@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Fuglestation</title>
-    <link rel="stylesheet" href="/static/styles.css?v=20260718-recordings" />
+    <link rel="stylesheet" href="/static/styles.css?v=20260718-species-clips" />
   </head>
   <body>
     <main class="page">
@@ -205,6 +205,17 @@
         <div id="recordings-list" class="recordings-list"></div>
       </section>
 
+      <section class="species-clips-panel" aria-label="Seneste artsklip">
+        <div class="section-heading">
+          <h2>Seneste artsklip</h2>
+          <div class="section-actions">
+            <span id="species-clips-status" class="muted">Indlæser artsklip...</span>
+            <button id="refresh-species-clips-button" type="button">Opdater artsklip</button>
+          </div>
+        </div>
+        <div id="species-clips-list" class="recordings-list"></div>
+      </section>
+
       <section class="summary" aria-label="Status">
         <div>
           <span class="label">Detektioner</span>
@@ -243,6 +254,6 @@
       </section>
     </main>
 
-    <script src="/static/app.js?v=20260718-recordings"></script>
+    <script src="/static/app.js?v=20260718-species-clips"></script>
   </body>
 </html>

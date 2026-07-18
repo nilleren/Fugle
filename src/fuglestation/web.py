@@ -16,6 +16,8 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from fuglestation.analyze_audio import DEFAULT_CONFIDENCE
+from fuglestation.audio_clips import DEFAULT_SPECIES_CLIPS_DIR
+from fuglestation.audio_clips import load_species_clip_index
 from fuglestation.database import (
     DEFAULT_DATABASE_PATH,
     get_detection_overview,
@@ -880,6 +882,48 @@ def api_audio_recording_file(filename: str) -> FileResponse:
         raise HTTPException(status_code=404, detail="Optagelsen blev ikke fundet.")
 
     return FileResponse(recording_path, media_type="audio/wav")
+
+
+@app.get("/api/audio/species-clips")
+def api_audio_species_clips() -> dict[str, object]:
+    """Return the latest saved audio clip for each heard species."""
+
+    clips_dir = DEFAULT_SPECIES_CLIPS_DIR
+    index = load_species_clip_index(clips_dir)
+    clips = sorted(
+        index.values(),
+        key=lambda clip: str(clip.get("updated_at", "")),
+        reverse=True,
+    )
+
+    return {
+        "clips_dir": str(clips_dir),
+        "count": len(clips),
+        "clips": [
+            {
+                **clip,
+                "display_name": format_species_name(str(clip["species_name"])),
+                "url": f"/api/audio/species-clips/{clip['filename']}",
+            }
+            for clip in clips
+            if "species_name" in clip and "filename" in clip
+        ],
+    }
+
+
+@app.get("/api/audio/species-clips/{filename}")
+def api_audio_species_clip_file(filename: str) -> FileResponse:
+    """Serve one latest-species WAV clip."""
+
+    if Path(filename).name != filename or not filename.lower().endswith(".wav"):
+        raise HTTPException(status_code=404, detail="Artsklippet blev ikke fundet.")
+
+    clips_dir = DEFAULT_SPECIES_CLIPS_DIR.resolve()
+    clip_path = (clips_dir / filename).resolve()
+    if clip_path.parent != clips_dir or not clip_path.exists():
+        raise HTTPException(status_code=404, detail="Artsklippet blev ikke fundet.")
+
+    return FileResponse(clip_path, media_type="audio/wav")
 
 
 @app.post("/api/audio/test-recording")

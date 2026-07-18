@@ -175,7 +175,8 @@ button:disabled {
 
 .config-panel,
 .audio-devices-panel,
-.recordings-panel {
+.recordings-panel,
+.species-clips-panel {
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 8px;

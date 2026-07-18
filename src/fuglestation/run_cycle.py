@@ -15,6 +15,7 @@ from fuglestation.analyze_audio import (
     print_summary,
     analyze_audio,
 )
+from fuglestation.audio_clips import save_latest_species_clips
 from fuglestation.database import save_analysis
 from fuglestation.record_audio import (
     CONFIG_PATH,
@@ -183,6 +184,9 @@ def run_single_cycle(options: CycleOptions) -> int:
             detections=detections,
         )
         print(f"Gemte analyse i SQLite: {database_path} (recording_id={recording_id})")
+        saved_clips = save_latest_species_clips(audio_path, detections)
+        if saved_clips:
+            print(f"Gemte {len(saved_clips)} seneste artsklip.")
 
     print_summary(detections, csv_path)
     print("Cyklus faerdig. Websiden opdaterer automatisk.")

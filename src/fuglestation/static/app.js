@@ -30,6 +30,11 @@ const audioDeviceSaveStatusEl = document.querySelector("#audio-device-save-statu
 const recordingsStatusEl = document.querySelector("#recordings-status");
 const recordingsListEl = document.querySelector("#recordings-list");
 const refreshRecordingsButton = document.querySelector("#refresh-recordings-button");
+const speciesClipsStatusEl = document.querySelector("#species-clips-status");
+const speciesClipsListEl = document.querySelector("#species-clips-list");
+const refreshSpeciesClipsButton = document.querySelector(
+  "#refresh-species-clips-button",
+);
 const runtimeSettingsForm = document.querySelector("#runtime-settings-form");
 const siteTitleSettingEl = document.querySelector("#site-title-setting");
 const durationSettingEl = document.querySelector("#duration-setting");
@@ -265,6 +270,42 @@ function renderRecordings(recordings) {
   }
 }
 
+function renderSpeciesClips(clips) {
+  speciesClipsListEl.replaceChildren();
+
+  if (clips.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "muted";
+    empty.textContent = "Ingen artsklip gemt endnu.";
+    speciesClipsListEl.append(empty);
+    return;
+  }
+
+  for (const clip of clips) {
+    const item = document.createElement("article");
+    item.className = "recording-item";
+
+    const header = document.createElement("div");
+    header.className = "recording-header";
+
+    const name = document.createElement("strong");
+    name.textContent = clip.display_name;
+
+    const meta = document.createElement("span");
+    meta.className = "muted";
+    meta.textContent = `${formatPercent(clip.confidence)} · ${clip.source_recording}`;
+
+    const audio = document.createElement("audio");
+    audio.controls = true;
+    audio.preload = "none";
+    audio.src = clip.url;
+
+    header.append(name, meta);
+    item.append(header, audio);
+    speciesClipsListEl.append(item);
+  }
+}
+
 async function loadDetections() {
   statusEl.classList.remove("error");
   statusEl.textContent = "Indlæser seneste detektioner...";
@@ -403,6 +444,29 @@ async function loadRecordings() {
     recordingsListEl.replaceChildren();
   } finally {
     refreshRecordingsButton.disabled = false;
+  }
+}
+
+async function loadSpeciesClips() {
+  refreshSpeciesClipsButton.disabled = true;
+  speciesClipsStatusEl.classList.remove("error");
+  speciesClipsStatusEl.textContent = "Indlæser artsklip...";
+
+  try {
+    const response = await fetch("/api/audio/species-clips");
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.detail || `HTTP ${response.status}`);
+    }
+
+    speciesClipsStatusEl.textContent = `${data.count} art(er) med klip`;
+    renderSpeciesClips(data.clips);
+  } catch (error) {
+    speciesClipsStatusEl.classList.add("error");
+    speciesClipsStatusEl.textContent = `Kunne ikke hente artsklip: ${error.message}`;
+    speciesClipsListEl.replaceChildren();
+  } finally {
+    refreshSpeciesClipsButton.disabled = false;
   }
 }
 
@@ -602,11 +666,13 @@ refreshButton.addEventListener("click", () => {
   loadConfig();
   loadAudioDevices();
   loadRecordings();
+  loadSpeciesClips();
 });
 startSchedulerButton.addEventListener("click", () => controlScheduler("start"));
 stopSchedulerButton.addEventListener("click", () => controlScheduler("stop"));
 testRecordingButton.addEventListener("click", testRecording);
 refreshRecordingsButton.addEventListener("click", loadRecordings);
+refreshSpeciesClipsButton.addEventListener("click", loadSpeciesClips);
 runtimeSettingsForm.addEventListener("submit", saveRuntimeSettings);
 resetDefaultSettingsButton.addEventListener("click", resetDefaultSettings);
 audioDevicesListEl.addEventListener("click", (event) => {
@@ -624,3 +690,4 @@ loadStationStatus();
 loadConfig();
 loadAudioDevices();
 loadRecordings();
+loadSpeciesClips();

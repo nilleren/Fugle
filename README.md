@@ -572,6 +572,13 @@ En kort testoptagelse kan startes fra websiden eller API'et:
 POST http://127.0.0.1:8000/api/audio/test-recording
 ```
 
+De seneste fulde WAV-optagelser og de seneste artsklip kan hoeres fra settings-siden eller API'et:
+
+```text
+GET http://127.0.0.1:8000/api/audio/recordings
+GET http://127.0.0.1:8000/api/audio/species-clips
+```
+
 Valgt mikrofon kan gemmes fra websiden eller API'et:
 
 ```text
@@ -622,6 +629,8 @@ POST http://127.0.0.1:8000/api/scheduler/stop
 - Websiden viser den aktuelle konfiguration fra `config.toml`.
 - Websiden viser tilgaengelige mikrofoner.
 - Websiden kan lave en kort testoptagelse med den valgte mikrofon.
+- Websiden kan afspille de seneste fulde optagelser.
+- Websiden kan afspille seneste gemte lydklip for hver hoert art.
 - Websiden kan gemme valgt mikrofon i `config.toml`.
 - Websiden kan gemme optagelaengde og registrerings-confidence i `config.toml`.
 - Websiden kan gemme en separat confidence-graense for vaegvisningen i `config.toml`.
