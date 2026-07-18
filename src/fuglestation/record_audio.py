@@ -38,6 +38,7 @@ class AudioConfig:
     duration_seconds: int
     sample_rate: int | None
     output_dir: Path
+    recordings_to_keep: int
 
 
 def clean_device_name(name: object) -> str:
@@ -55,6 +56,7 @@ def load_config(path: Path) -> AudioConfig:
             duration_seconds=DEFAULT_DURATION_SECONDS,
             sample_rate=None,
             output_dir=RECORDINGS_DIR,
+            recordings_to_keep=MAX_RECORDINGS_TO_KEEP,
         )
 
     with path.open("rb") as config_file:
@@ -68,6 +70,10 @@ def load_config(path: Path) -> AudioConfig:
     duration_seconds = audio_config.get("duration_seconds", DEFAULT_DURATION_SECONDS)
     sample_rate = audio_config.get("sample_rate")
     output_dir = audio_config.get("output_dir", str(RECORDINGS_DIR))
+    recordings_to_keep = audio_config.get(
+        "recordings_to_keep",
+        MAX_RECORDINGS_TO_KEEP,
+    )
 
     if device is not None and not isinstance(device, int):
         raise SystemExit("audio.device skal vaere et heltal.")
@@ -79,12 +85,15 @@ def load_config(path: Path) -> AudioConfig:
         raise SystemExit("audio.sample_rate skal vaere et heltal over 0.")
     if not isinstance(output_dir, str) or not output_dir.strip():
         raise SystemExit("audio.output_dir skal vaere en mappe-sti.")
+    if not isinstance(recordings_to_keep, int) or recordings_to_keep < 1:
+        raise SystemExit("audio.recordings_to_keep skal vaere et heltal over 0.")
 
     return AudioConfig(
         device=device,
         duration_seconds=duration_seconds,
         sample_rate=sample_rate,
         output_dir=Path(output_dir),
+        recordings_to_keep=recordings_to_keep,
     )
 
 
@@ -201,6 +210,7 @@ def record_audio(
     duration_seconds: int,
     sample_rate: int,
     output_path: Path,
+    recordings_to_keep: int = MAX_RECORDINGS_TO_KEEP,
 ) -> None:
     """Record audio from the selected microphone and save it as WAV."""
 
@@ -230,7 +240,7 @@ def record_audio(
     save_wav(output_path, audio, sample_rate)
     print(f"Gemte optagelse: {output_path}")
 
-    deleted_paths = cleanup_old_recordings(output_path.parent)
+    deleted_paths = cleanup_old_recordings(output_path.parent, keep=recordings_to_keep)
     if deleted_paths:
         print(f"Slettede {len(deleted_paths)} gammel/gamle lydfil(er).")
 
@@ -311,7 +321,13 @@ def main() -> None:
 
     sample_rate = sample_rate or microphone.default_samplerate
     output_path = args.output or build_output_path(config.output_dir)
-    record_audio(microphone, duration_seconds, sample_rate, output_path)
+    record_audio(
+        microphone,
+        duration_seconds,
+        sample_rate,
+        output_path,
+        recordings_to_keep=config.recordings_to_keep,
+    )
 
 
 if __name__ == "__main__":

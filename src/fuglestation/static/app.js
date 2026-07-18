@@ -38,6 +38,9 @@ const refreshSpeciesClipsButton = document.querySelector(
 const runtimeSettingsForm = document.querySelector("#runtime-settings-form");
 const siteTitleSettingEl = document.querySelector("#site-title-setting");
 const durationSettingEl = document.querySelector("#duration-setting");
+const recordingsToKeepSettingEl = document.querySelector(
+  "#recordings-to-keep-setting",
+);
 const birdnetConfidenceSettingEl = document.querySelector(
   "#birdnet-confidence-setting",
 );
@@ -372,8 +375,11 @@ async function loadConfig() {
     configDeviceEl.textContent = `Device ${config.audio.device}`;
     configAudioEl.textContent = `${config.audio.duration_seconds} sek. ved ${
       config.audio.sample_rate
-    } Hz til ${config.audio.output_dir}`;
+    } Hz til ${config.audio.output_dir}, gemmer ${
+      config.audio.recordings_to_keep
+    } fulde optagelser`;
     durationSettingEl.value = String(config.audio.duration_seconds);
+    recordingsToKeepSettingEl.value = String(config.audio.recordings_to_keep);
     configGeoEl.textContent = formatGeo(config.birdnet);
     configBirdnetEl.textContent = `${formatWeek(
       config.birdnet.week,
@@ -398,6 +404,7 @@ async function loadConfig() {
     wallShowShadowsSettingEl.checked = config.wall.show_shadows;
     wallSizeModeSettingEl.value = config.wall.size_mode;
     configDatabaseEl.textContent = config.database.path;
+    loadRecordings();
   } catch (error) {
     configPathEl.textContent = `Kunne ikke hente konfiguration: ${error.message}`;
     configDeviceEl.textContent = "-";
@@ -430,7 +437,8 @@ async function loadRecordings() {
   recordingsStatusEl.textContent = "Indlæser optagelser...";
 
   try {
-    const response = await fetch("/api/audio/recordings?limit=3");
+    const limit = Math.max(1, Number(recordingsToKeepSettingEl.value) || 3);
+    const response = await fetch(`/api/audio/recordings?limit=${limit}`);
     const data = await response.json();
     if (!response.ok) {
       throw new Error(data.detail || `HTTP ${response.status}`);
@@ -509,6 +517,7 @@ async function saveRuntimeSettings(event) {
   try {
     const siteTitle = siteTitleSettingEl.value.trim();
     const durationSeconds = Number(durationSettingEl.value);
+    const recordingsToKeep = Number(recordingsToKeepSettingEl.value);
     const birdnetMinConfidence = Number(birdnetConfidenceSettingEl.value);
     const quietStart = quietStartSettingEl.value;
     const quietEnd = quietEndSettingEl.value;
@@ -526,6 +535,7 @@ async function saveRuntimeSettings(event) {
       body: JSON.stringify({
         site_title: siteTitle,
         duration_seconds: durationSeconds,
+        recordings_to_keep: recordingsToKeep,
         birdnet_min_confidence: birdnetMinConfidence,
         wall_min_confidence: wallMinConfidence,
         quiet_start: quietStart,
@@ -548,7 +558,7 @@ async function saveRuntimeSettings(event) {
       result.site_title
     }", ${
       result.duration_seconds
-    } sek., registrering ${formatPercent(
+    } sek., gemmer ${result.recordings_to_keep} fulde optagelser, registrering ${formatPercent(
       result.birdnet_min_confidence,
     )}, væg ${formatPercent(result.wall_min_confidence)}, natpause ${
       result.quiet_start

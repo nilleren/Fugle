@@ -82,6 +82,7 @@ device = 0
 duration_seconds = 10
 sample_rate = 44100
 output_dir = "recordings"
+recordings_to_keep = 3
 
 [birdnet]
 use_geo = true
@@ -157,7 +158,9 @@ python -m fuglestation.record_audio --device 0 --duration 10 --sample-rate 44100
 ```
 
 Optagelser gemmes i mappen `recordings`.
-Efter hver ny optagelse beholdes kun de 3 nyeste WAV-filer i optagemappen.
+`audio.recordings_to_keep` bestemmer hvor mange fulde WAV-optagelser der beholdes.
+Seneste artsklip gemmes separat og tæller ikke med i denne grænse.
+Efter hver ny optagelse beholdes kun det valgte antal WAV-filer i optagemappen.
 
 ## Fuld cyklus
 

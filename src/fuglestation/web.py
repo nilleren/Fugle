@@ -66,6 +66,7 @@ class RuntimeSettingsUpdate(BaseModel):
 
     site_title: str
     duration_seconds: int
+    recordings_to_keep: int
     birdnet_min_confidence: float
     wall_min_confidence: float
     quiet_start: str
@@ -234,7 +235,7 @@ def species_summary_payload(summary: object) -> dict[str, object]:
 
 
 
-def get_configured_microphone() -> tuple[Microphone, int, Path]:
+def get_configured_microphone() -> tuple[Microphone, int, Path, int]:
     """Return microphone, sample rate, and output path from config.toml."""
 
     audio_config = load_audio_config(CONFIG_PATH)
@@ -252,7 +253,7 @@ def get_configured_microphone() -> tuple[Microphone, int, Path]:
 
     sample_rate = audio_config.sample_rate or microphone.default_samplerate
     output_path = build_output_path(audio_config.output_dir)
-    return microphone, sample_rate, output_path
+    return microphone, sample_rate, output_path, audio_config.recordings_to_keep
 
 
 def format_toml_value(value: int | float | str | bool) -> str:
@@ -770,6 +771,7 @@ def api_config() -> dict[str, object]:
         "audio": {
             "device": audio_config.get("device", 0),
             "duration_seconds": audio_config.get("duration_seconds", 10),
+            "recordings_to_keep": audio_config.get("recordings_to_keep", 3),
             "sample_rate": audio_config.get("sample_rate", 44100),
             "output_dir": audio_config.get("output_dir", "recordings"),
         },
@@ -834,7 +836,7 @@ def api_audio_devices() -> dict[str, object]:
 
 @app.get("/api/audio/recordings")
 def api_audio_recordings(
-    limit: int = Query(default=3, ge=1, le=20),
+    limit: int = Query(default=3, ge=1, le=500),
 ) -> dict[str, object]:
     """Return the newest locally retained WAV recordings."""
 
@@ -931,12 +933,15 @@ def api_audio_test_recording() -> dict[str, object]:
     """Record a short WAV file with the configured microphone."""
 
     try:
-        microphone, sample_rate, output_path = get_configured_microphone()
+        microphone, sample_rate, output_path, recordings_to_keep = (
+            get_configured_microphone()
+        )
         record_audio(
             microphone=microphone,
             duration_seconds=TEST_RECORDING_SECONDS,
             sample_rate=sample_rate,
             output_path=output_path,
+            recordings_to_keep=recordings_to_keep,
         )
     except (RuntimeError, SystemExit) as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
@@ -1000,6 +1005,11 @@ def api_config_runtime_settings(update: RuntimeSettingsUpdate) -> dict[str, obje
             status_code=400,
             detail="Optagelængde skal være mellem 1 og 300 sekunder.",
         )
+    if update.recordings_to_keep < 1 or update.recordings_to_keep > 500:
+        raise HTTPException(
+            status_code=400,
+            detail="Antal gemte optagelser skal være mellem 1 og 500.",
+        )
     if update.birdnet_min_confidence < 0 or update.birdnet_min_confidence > 1:
         raise HTTPException(
             status_code=400,
@@ -1036,7 +1046,10 @@ def api_config_runtime_settings(update: RuntimeSettingsUpdate) -> dict[str, obje
             CONFIG_PATH,
             {
                 "site": {"title": site_title},
-                "audio": {"duration_seconds": update.duration_seconds},
+                "audio": {
+                    "duration_seconds": update.duration_seconds,
+                    "recordings_to_keep": update.recordings_to_keep,
+                },
                 "birdnet": {"min_confidence": birdnet_min_confidence},
                 "schedule": {
                     "quiet_start": quiet_start,
@@ -1061,6 +1074,7 @@ def api_config_runtime_settings(update: RuntimeSettingsUpdate) -> dict[str, obje
         "message": "Indstillinger gemt.",
         "site_title": site_title,
         "duration_seconds": update.duration_seconds,
+        "recordings_to_keep": update.recordings_to_keep,
         "birdnet_min_confidence": birdnet_min_confidence,
         "wall_min_confidence": wall_min_confidence,
         "quiet_start": quiet_start,

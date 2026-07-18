@@ -165,6 +165,7 @@ def run_single_cycle(options: CycleOptions) -> int:
         duration_seconds=duration_seconds,
         sample_rate=sample_rate,
         output_path=audio_path,
+        recordings_to_keep=audio_config.recordings_to_keep,
     )
 
     detections = analyze_audio(

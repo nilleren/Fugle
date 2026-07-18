@@ -7,6 +7,7 @@ device = 0
 duration_seconds = 10
 sample_rate = 44100
 output_dir = "recordings"
+recordings_to_keep = 3
 
 [birdnet]
 # Approximate center of Denmark. Use config.toml for a private fixed site.
