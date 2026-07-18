@@ -15,6 +15,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from fuglestation.analyze_audio import DEFAULT_CONFIDENCE
 from fuglestation.database import (
     DEFAULT_DATABASE_PATH,
     get_detection_overview,
@@ -46,6 +47,7 @@ DEFAULT_WALL_SHOW_LATIN_NAMES = True
 DEFAULT_WALL_SHOW_FOOTER = True
 DEFAULT_WALL_SHOW_SHADOWS = False
 DEFAULT_WALL_SIZE_MODE = "common"
+DEFAULT_WALL_MIN_CONFIDENCE = 0.5
 DEFAULT_SITE_TITLE = "Fuglene i haven"
 WALL_SIZE_MODES = {"equal", "common", "rare"}
 scheduler_process: subprocess.Popen | None = None
@@ -62,7 +64,8 @@ class RuntimeSettingsUpdate(BaseModel):
 
     site_title: str
     duration_seconds: int
-    geo_min_confidence: float
+    birdnet_min_confidence: float
+    wall_min_confidence: float
     quiet_start: str
     quiet_end: str
     wall_max_species: int
@@ -327,7 +330,7 @@ def validate_time_value(value: str, field_name: str) -> str:
     return f"{hour:02d}:{minute:02d}"
 
 
-def load_wall_config(config: dict[str, object]) -> dict[str, int | bool]:
+def load_wall_config(config: dict[str, object]) -> dict[str, int | float | bool | str]:
     """Return wall display settings with safe defaults."""
 
     wall_config = config.get("wall", {})
@@ -347,6 +350,10 @@ def load_wall_config(config: dict[str, object]) -> dict[str, int | bool]:
     show_footer = wall_config.get("show_footer", DEFAULT_WALL_SHOW_FOOTER)
     show_shadows = wall_config.get("show_shadows", DEFAULT_WALL_SHOW_SHADOWS)
     size_mode = wall_config.get("size_mode", DEFAULT_WALL_SIZE_MODE)
+    min_confidence = wall_config.get(
+        "min_confidence",
+        DEFAULT_WALL_MIN_CONFIDENCE,
+    )
     if not isinstance(max_species, int) or max_species < 1:
         max_species = DEFAULT_WALL_MAX_SPECIES
     if not isinstance(recent_minutes, int) or recent_minutes < 1:
@@ -361,10 +368,13 @@ def load_wall_config(config: dict[str, object]) -> dict[str, int | bool]:
         show_shadows = DEFAULT_WALL_SHOW_SHADOWS
     if not isinstance(size_mode, str) or size_mode not in WALL_SIZE_MODES:
         size_mode = DEFAULT_WALL_SIZE_MODE
+    if not isinstance(min_confidence, int | float) or not 0 <= min_confidence <= 1:
+        min_confidence = DEFAULT_WALL_MIN_CONFIDENCE
 
     return {
         "max_species": max_species,
         "recent_minutes": recent_minutes,
+        "min_confidence": float(min_confidence),
         "show_names": show_names,
         "show_latin_names": show_latin_names,
         "show_footer": show_footer,
@@ -385,6 +395,29 @@ def load_site_config(config: dict[str, object]) -> dict[str, str]:
         title = DEFAULT_SITE_TITLE
 
     return {"title": title.strip()}
+
+
+def load_birdnet_runtime_config(config: dict[str, object]) -> dict[str, float]:
+    """Return BirdNET runtime thresholds with safe defaults."""
+
+    birdnet_config = config.get("birdnet", {})
+    if not isinstance(birdnet_config, dict):
+        birdnet_config = {}
+
+    min_confidence = birdnet_config.get("min_confidence", DEFAULT_CONFIDENCE)
+    geo_min_confidence = birdnet_config.get("geo_min_confidence", 0.05)
+    if not isinstance(min_confidence, int | float) or not 0 <= min_confidence <= 1:
+        min_confidence = DEFAULT_CONFIDENCE
+    if (
+        not isinstance(geo_min_confidence, int | float)
+        or not 0 <= geo_min_confidence <= 1
+    ):
+        geo_min_confidence = 0.05
+
+    return {
+        "min_confidence": float(min_confidence),
+        "geo_min_confidence": float(geo_min_confidence),
+    }
 
 
 app = FastAPI(title="Fuglestation")
@@ -485,7 +518,7 @@ def api_detections(
 def api_stats(
     days: int = Query(default=30, ge=0, le=366),
     limit: int = Query(default=24, ge=1, le=80),
-    min_confidence: float = Query(default=0.05, ge=0.0, le=1.0),
+    min_confidence: float | None = Query(default=None, ge=0.0, le=1.0),
 ) -> dict[str, object]:
     """Return detection statistics for the mobile statistics view."""
 
@@ -495,16 +528,23 @@ def api_stats(
             timespec="seconds"
         )
     database_path = load_database_path(CONFIG_PATH)
-    site_config = load_site_config(load_config(CONFIG_PATH))
+    config = load_config(CONFIG_PATH)
+    site_config = load_site_config(config)
+    birdnet_runtime_config = load_birdnet_runtime_config(config)
+    stats_min_confidence = (
+        min_confidence
+        if min_confidence is not None
+        else birdnet_runtime_config["min_confidence"]
+    )
     overview = get_detection_overview(
         database_path,
-        min_confidence=min_confidence,
+        min_confidence=stats_min_confidence,
         since_analyzed_at=since_analyzed_at,
     )
     species_statistics = get_species_statistics(
         database_path,
         limit=limit,
-        min_confidence=min_confidence,
+        min_confidence=stats_min_confidence,
         since_analyzed_at=since_analyzed_at,
     )
 
@@ -519,7 +559,7 @@ def api_stats(
         "site_title": site_config["title"],
         "days": days,
         "limit": limit,
-        "min_confidence": min_confidence,
+        "min_confidence": stats_min_confidence,
         "updated_at": now_iso(),
         "overview": {
             "detection_count": overview.detection_count,
@@ -550,16 +590,23 @@ def api_stats(
 @app.get("/api/stats/species")
 def api_species_stats(
     species_name: str = Query(min_length=1),
-    min_confidence: float = Query(default=0.05, ge=0.0, le=1.0),
+    min_confidence: float | None = Query(default=None, ge=0.0, le=1.0),
 ) -> dict[str, object]:
     """Return all-time statistics for one species."""
 
     database_path = load_database_path(CONFIG_PATH)
-    site_config = load_site_config(load_config(CONFIG_PATH))
+    config = load_config(CONFIG_PATH)
+    site_config = load_site_config(config)
+    birdnet_runtime_config = load_birdnet_runtime_config(config)
+    stats_min_confidence = (
+        min_confidence
+        if min_confidence is not None
+        else birdnet_runtime_config["min_confidence"]
+    )
     species = get_species_statistics_for_name(
         database_path,
         species_name=species_name,
-        min_confidence=min_confidence,
+        min_confidence=stats_min_confidence,
     )
     if species is None:
         raise HTTPException(status_code=404, detail="Arten blev ikke fundet.")
@@ -567,7 +614,7 @@ def api_species_stats(
     return {
         "database": str(database_path),
         "site_title": site_config["title"],
-        "min_confidence": min_confidence,
+        "min_confidence": stats_min_confidence,
         "updated_at": now_iso(),
         "species": {
             **species_summary_payload(species),
@@ -586,7 +633,7 @@ def api_species_stats(
 @app.get("/api/wall")
 def api_wall(
     limit: int | None = Query(default=None, ge=1, le=60),
-    min_confidence: float = Query(default=0.05, ge=0.0, le=1.0),
+    min_confidence: float | None = Query(default=None, ge=0.0, le=1.0),
     recent_minutes: int | None = Query(default=None, ge=1, le=10080),
 ) -> dict[str, object]:
     """Return species data shaped for the wall display."""
@@ -596,6 +643,11 @@ def api_wall(
     wall_config = load_wall_config(config)
     wall_limit = limit or wall_config["max_species"]
     wall_recent_minutes = recent_minutes or wall_config["recent_minutes"]
+    wall_min_confidence = (
+        min_confidence
+        if min_confidence is not None
+        else wall_config["min_confidence"]
+    )
     since_analyzed_at = (
         datetime.now() - timedelta(minutes=wall_recent_minutes)
     ).isoformat(timespec="seconds")
@@ -604,22 +656,24 @@ def api_wall(
     species_summary = get_species_summary(
         database_path,
         wall_limit,
-        min_confidence,
+        wall_min_confidence,
         since_analyzed_at=since_analyzed_at,
+        exclusive_min_confidence=True,
     )
     using_recent_window = True
     if not species_summary:
         species_summary = get_species_summary(
             database_path,
             wall_limit,
-            min_confidence,
+            wall_min_confidence,
+            exclusive_min_confidence=True,
         )
         using_recent_window = False
 
     return {
         "count": len(species_summary),
         "site_title": site_config["title"],
-        "min_confidence": min_confidence,
+        "min_confidence": wall_min_confidence,
         "limit": wall_limit,
         "recent_minutes": wall_recent_minutes,
         "using_recent_window": using_recent_window,
@@ -671,6 +725,7 @@ def api_config() -> dict[str, object]:
         database_config = {}
     if not isinstance(schedule_config, dict):
         schedule_config = {}
+    birdnet_runtime_config = load_birdnet_runtime_config(config)
 
     return {
         "config_path": str(CONFIG_PATH),
@@ -686,7 +741,8 @@ def api_config() -> dict[str, object]:
             "latitude": birdnet_config.get("latitude", 56.0),
             "longitude": birdnet_config.get("longitude", 10.0),
             "week": birdnet_config.get("week", 0),
-            "geo_min_confidence": birdnet_config.get("geo_min_confidence", 0.05),
+            "min_confidence": birdnet_runtime_config["min_confidence"],
+            "geo_min_confidence": birdnet_runtime_config["geo_min_confidence"],
         },
         "database": {
             "path": database_config.get("path", str(DEFAULT_DATABASE_PATH)),
@@ -813,10 +869,15 @@ def api_config_runtime_settings(update: RuntimeSettingsUpdate) -> dict[str, obje
             status_code=400,
             detail="Optagelængde skal være mellem 1 og 300 sekunder.",
         )
-    if update.geo_min_confidence < 0 or update.geo_min_confidence > 1:
+    if update.birdnet_min_confidence < 0 or update.birdnet_min_confidence > 1:
         raise HTTPException(
             status_code=400,
-            detail="BirdNET confidence skal være mellem 0 og 1.",
+            detail="Registrerings-confidence skal være mellem 0 og 1.",
+        )
+    if update.wall_min_confidence < 0 or update.wall_min_confidence > 1:
+        raise HTTPException(
+            status_code=400,
+            detail="Væg-confidence skal være mellem 0 og 1.",
         )
     if update.wall_max_species < 1 or update.wall_max_species > 60:
         raise HTTPException(
@@ -834,7 +895,8 @@ def api_config_runtime_settings(update: RuntimeSettingsUpdate) -> dict[str, obje
             detail="Vægstørrelse skal være equal, common eller rare.",
         )
 
-    geo_min_confidence = round(update.geo_min_confidence, 3)
+    birdnet_min_confidence = round(update.birdnet_min_confidence, 3)
+    wall_min_confidence = round(update.wall_min_confidence, 3)
     quiet_start = validate_time_value(update.quiet_start, "quiet_start")
     quiet_end = validate_time_value(update.quiet_end, "quiet_end")
 
@@ -844,7 +906,7 @@ def api_config_runtime_settings(update: RuntimeSettingsUpdate) -> dict[str, obje
             {
                 "site": {"title": site_title},
                 "audio": {"duration_seconds": update.duration_seconds},
-                "birdnet": {"geo_min_confidence": geo_min_confidence},
+                "birdnet": {"min_confidence": birdnet_min_confidence},
                 "schedule": {
                     "quiet_start": quiet_start,
                     "quiet_end": quiet_end,
@@ -852,6 +914,7 @@ def api_config_runtime_settings(update: RuntimeSettingsUpdate) -> dict[str, obje
                 "wall": {
                     "max_species": update.wall_max_species,
                     "recent_minutes": update.wall_recent_minutes,
+                    "min_confidence": wall_min_confidence,
                     "show_names": update.wall_show_names,
                     "show_latin_names": update.wall_show_latin_names,
                     "show_footer": update.wall_show_footer,
@@ -867,7 +930,8 @@ def api_config_runtime_settings(update: RuntimeSettingsUpdate) -> dict[str, obje
         "message": "Indstillinger gemt.",
         "site_title": site_title,
         "duration_seconds": update.duration_seconds,
-        "geo_min_confidence": geo_min_confidence,
+        "birdnet_min_confidence": birdnet_min_confidence,
+        "wall_min_confidence": wall_min_confidence,
         "quiet_start": quiet_start,
         "quiet_end": quiet_end,
         "wall_max_species": update.wall_max_species,

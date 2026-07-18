@@ -32,13 +32,16 @@ const audioDeviceSaveStatusEl = document.querySelector("#audio-device-save-statu
 const runtimeSettingsForm = document.querySelector("#runtime-settings-form");
 const siteTitleSettingEl = document.querySelector("#site-title-setting");
 const durationSettingEl = document.querySelector("#duration-setting");
-const geoConfidenceSettingEl = document.querySelector("#geo-confidence-setting");
+const birdnetConfidenceSettingEl = document.querySelector(
+  "#birdnet-confidence-setting",
+);
 const quietStartSettingEl = document.querySelector("#quiet-start-setting");
 const quietEndSettingEl = document.querySelector("#quiet-end-setting");
 const wallMaxSpeciesSettingEl = document.querySelector("#wall-max-species-setting");
 const wallRecentMinutesSettingEl = document.querySelector(
   "#wall-recent-minutes-setting",
 );
+const wallConfidenceSettingEl = document.querySelector("#wall-confidence-setting");
 const wallShowNamesSettingEl = document.querySelector("#wall-show-names-setting");
 const wallShowLatinNamesSettingEl = document.querySelector(
   "#wall-show-latin-names-setting",
@@ -293,8 +296,10 @@ async function loadConfig() {
     configGeoEl.textContent = formatGeo(config.birdnet);
     configBirdnetEl.textContent = `${formatWeek(
       config.birdnet.week,
-    )}, geo confidence ${formatPercent(config.birdnet.geo_min_confidence)}`;
-    geoConfidenceSettingEl.value = String(config.birdnet.geo_min_confidence);
+    )}, registrering ${formatPercent(
+      config.birdnet.min_confidence,
+    )}, geo-liste ${formatPercent(config.birdnet.geo_min_confidence)}`;
+    birdnetConfidenceSettingEl.value = String(config.birdnet.min_confidence);
     configScheduleEl.textContent = `${formatInterval(
       config.schedule.first_phase_interval_seconds,
     )} -> ${formatInterval(
@@ -305,6 +310,7 @@ async function loadConfig() {
     quietEndSettingEl.value = config.schedule.quiet_end;
     wallMaxSpeciesSettingEl.value = String(config.wall.max_species);
     wallRecentMinutesSettingEl.value = String(config.wall.recent_minutes);
+    wallConfidenceSettingEl.value = String(config.wall.min_confidence);
     wallShowNamesSettingEl.checked = config.wall.show_names;
     wallShowLatinNamesSettingEl.checked = config.wall.show_latin_names;
     wallShowFooterSettingEl.checked = config.wall.show_footer;
@@ -375,11 +381,12 @@ async function saveRuntimeSettings(event) {
   try {
     const siteTitle = siteTitleSettingEl.value.trim();
     const durationSeconds = Number(durationSettingEl.value);
-    const geoMinConfidence = Number(geoConfidenceSettingEl.value);
+    const birdnetMinConfidence = Number(birdnetConfidenceSettingEl.value);
     const quietStart = quietStartSettingEl.value;
     const quietEnd = quietEndSettingEl.value;
     const wallMaxSpecies = Number(wallMaxSpeciesSettingEl.value);
     const wallRecentMinutes = Number(wallRecentMinutesSettingEl.value);
+    const wallMinConfidence = Number(wallConfidenceSettingEl.value);
     const wallShowNames = wallShowNamesSettingEl.checked;
     const wallShowLatinNames = wallShowLatinNamesSettingEl.checked;
     const wallShowFooter = wallShowFooterSettingEl.checked;
@@ -391,7 +398,8 @@ async function saveRuntimeSettings(event) {
       body: JSON.stringify({
         site_title: siteTitle,
         duration_seconds: durationSeconds,
-        geo_min_confidence: geoMinConfidence,
+        birdnet_min_confidence: birdnetMinConfidence,
+        wall_min_confidence: wallMinConfidence,
         quiet_start: quietStart,
         quiet_end: quietEnd,
         wall_max_species: wallMaxSpecies,
@@ -412,7 +420,9 @@ async function saveRuntimeSettings(event) {
       result.site_title
     }", ${
       result.duration_seconds
-    } sek., ${formatPercent(result.geo_min_confidence)} confidence, natpause ${
+    } sek., registrering ${formatPercent(
+      result.birdnet_min_confidence,
+    )}, væg ${formatPercent(result.wall_min_confidence)}, natpause ${
       result.quiet_start
     }-${result.quiet_end}, væg: ${result.wall_max_species} fugle / ${
       result.wall_recent_minutes

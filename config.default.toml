@@ -15,6 +15,7 @@ latitude = 56.0
 longitude = 10.0
 # Leave week empty to use the current ISO week automatically.
 week = 0
+min_confidence = 0.1
 geo_min_confidence = 0.05
 
 [database]
@@ -33,6 +34,7 @@ quiet_end = "05:00"
 [wall]
 max_species = 20
 recent_minutes = 1400
+min_confidence = 0.5
 show_names = true
 size_mode = "common"
 show_footer = false

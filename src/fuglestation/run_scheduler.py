@@ -160,8 +160,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--confidence",
         type=float,
-        default=DEFAULT_CONFIDENCE,
-        help=f"Minimum confidence for BirdNET. Standard: {DEFAULT_CONFIDENCE}.",
+        help=(
+            "Minimum confidence for BirdNET-detektioner. "
+            f"Standard laeses fra config.toml eller {DEFAULT_CONFIDENCE}."
+        ),
     )
     parser.add_argument(
         "--top-k",

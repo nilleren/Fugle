@@ -17,7 +17,7 @@ Projektet bygges trin for trin. Lige nu kan programmet:
 - vise tilgaengelige mikrofoner paa websiden
 - lave en kort testoptagelse fra websiden
 - gemme valgt mikrofon fra websiden
-- gemme optagelaengde og BirdNET confidence fra websiden
+- gemme optagelaengde og registrerings-confidence fra websiden
 - gemme natpause fra websiden
 - vise kendte fuglearter med dansk og latinsk navn
 
@@ -88,6 +88,7 @@ use_geo = true
 latitude = 56.0
 longitude = 10.0
 week = 0
+min_confidence = 0.1
 geo_min_confidence = 0.05
 
 [database]
@@ -103,6 +104,7 @@ quiet_start = "22:00"
 quiet_end = "05:00"
 
 [wall]
+min_confidence = 0.5
 max_species = 20
 recent_minutes = 1400
 show_names = true
@@ -327,7 +329,7 @@ Websiden har:
 - visning af tilgaengelige mikrofoner
 - knap til kort testoptagelse med valgt mikrofon
 - knap til at gemme valgt mikrofon i `config.toml`
-- felter til optagelaengde, BirdNET confidence og natpause
+- felter til optagelaengde, registrerings-confidence og natpause
 - felter til maks antal fugle og tidsvindue for vægvisningen
 - artssammendrag
 - filter for minimum confidence
@@ -576,7 +578,7 @@ Valgt mikrofon kan gemmes fra websiden eller API'et:
 POST http://127.0.0.1:8000/api/config/audio-device
 ```
 
-Sidetitel, optagelaengde, BirdNET confidence, natpause og vaegvisning kan gemmes fra websiden eller API'et:
+Sidetitel, optagelaengde, registrerings-confidence, natpause og vaegvisning kan gemmes fra websiden eller API'et:
 
 ```text
 POST http://127.0.0.1:8000/api/config/runtime-settings
@@ -621,7 +623,8 @@ POST http://127.0.0.1:8000/api/scheduler/stop
 - Websiden viser tilgaengelige mikrofoner.
 - Websiden kan lave en kort testoptagelse med den valgte mikrofon.
 - Websiden kan gemme valgt mikrofon i `config.toml`.
-- Websiden kan gemme optagelaengde og BirdNET confidence i `config.toml`.
+- Websiden kan gemme optagelaengde og registrerings-confidence i `config.toml`.
+- Websiden kan gemme en separat confidence-graense for vaegvisningen i `config.toml`.
 - Websiden kan gemme natpause i `config.toml`.
 - Vaegvisningen viser en rolig fuglecollage baseret paa SQLite-data.
 - Vaegvisningen kan bruge lokale fuglebilleder fra `assets/birds`.

@@ -11,6 +11,7 @@ from fuglestation.analyze_audio import (
     build_output_path,
     load_birdnet_config,
     load_database_path,
+    load_detection_min_confidence,
     print_summary,
     analyze_audio,
 )
@@ -32,7 +33,7 @@ class CycleOptions:
     device: int | None
     duration: int | None
     sample_rate: int | None
-    confidence: float
+    confidence: float | None
     top_k: int
     no_geo: bool
     no_db: bool
@@ -94,8 +95,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--confidence",
         type=float,
-        default=DEFAULT_CONFIDENCE,
-        help=f"Minimum confidence for BirdNET. Standard: {DEFAULT_CONFIDENCE}.",
+        help=(
+            "Minimum confidence for BirdNET-detektioner. "
+            f"Standard laeses fra config.toml eller {DEFAULT_CONFIDENCE}."
+        ),
     )
     parser.add_argument(
         "--top-k",
@@ -124,6 +127,11 @@ def run_single_cycle(options: CycleOptions) -> int:
         options.device,
     )
     birdnet_config = load_birdnet_config(options.config_path)
+    confidence = (
+        options.confidence
+        if options.confidence is not None
+        else load_detection_min_confidence(options.config_path)
+    )
     database_path = load_database_path(options.config_path)
 
     if options.no_geo:
@@ -162,7 +170,7 @@ def run_single_cycle(options: CycleOptions) -> int:
         audio_path=audio_path,
         output_path=csv_path,
         top_k=options.top_k,
-        confidence=options.confidence,
+        confidence=confidence,
         birdnet_config=birdnet_config,
     )
 

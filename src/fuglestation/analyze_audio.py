@@ -97,6 +97,26 @@ def load_birdnet_config(path: Path) -> BirdNetConfig:
     )
 
 
+def load_detection_min_confidence(path: Path) -> float:
+    """Load the minimum detection confidence used for saved statistics."""
+
+    if not path.exists():
+        return DEFAULT_CONFIDENCE
+
+    with path.open("rb") as config_file:
+        raw_config = tomllib.load(config_file)
+
+    birdnet_config = raw_config.get("birdnet", {})
+    if not isinstance(birdnet_config, dict):
+        raise SystemExit(f"{path} skal indeholde en [birdnet]-sektion.")
+
+    min_confidence = birdnet_config.get("min_confidence", DEFAULT_CONFIDENCE)
+    if not isinstance(min_confidence, int | float) or not 0 <= min_confidence <= 1:
+        raise SystemExit("birdnet.min_confidence skal vaere mellem 0 og 1.")
+
+    return float(min_confidence)
+
+
 def load_database_path(path: Path) -> Path:
     """Load the SQLite database path from config.toml."""
 

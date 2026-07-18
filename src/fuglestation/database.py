@@ -250,6 +250,7 @@ def get_species_summary(
     limit: int,
     min_confidence: float = 0.0,
     since_analyzed_at: str | None = None,
+    exclusive_min_confidence: bool = False,
 ) -> list[SpeciesSummary]:
     """Read a compact per-species summary from SQLite."""
 
@@ -262,7 +263,8 @@ def get_species_summary(
 
     with connect(database_path) as connection:
         initialize_database(connection)
-        where_clauses = ["detections.confidence >= ?"]
+        confidence_operator = ">" if exclusive_min_confidence else ">="
+        where_clauses = [f"detections.confidence {confidence_operator} ?"]
         params: list[object] = [min_confidence]
         if since_analyzed_at is not None:
             where_clauses.append("recordings.analyzed_at >= ?")
