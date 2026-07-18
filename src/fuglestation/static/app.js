@@ -6,8 +6,6 @@ const bodyEl = document.querySelector("#detections-body");
 const emptyEl = document.querySelector("#empty-state");
 const refreshButton = document.querySelector("#refresh-button");
 const autoRefreshEl = document.querySelector("#auto-refresh");
-const confidenceFilterEl = document.querySelector("#confidence-filter");
-const confidenceValueEl = document.querySelector("#confidence-value");
 const speciesSummaryEl = document.querySelector("#species-summary");
 const stationStateEl = document.querySelector("#station-state");
 const stationMessageEl = document.querySelector("#station-message");
@@ -218,20 +216,13 @@ function renderAudioDevices(data) {
   }
 }
 
-function updateConfidenceLabel() {
-  confidenceValueEl.textContent = formatPercent(Number(confidenceFilterEl.value));
-}
-
 async function loadDetections() {
   statusEl.classList.remove("error");
   statusEl.textContent = "Indlæser seneste detektioner...";
   refreshButton.disabled = true;
 
   try {
-    const params = new URLSearchParams({
-      limit: "50",
-      min_confidence: confidenceFilterEl.value,
-    });
+    const params = new URLSearchParams({ limit: "50" });
     const response = await fetch(`/api/detections?${params.toString()}`);
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
@@ -550,12 +541,7 @@ audioDevicesListEl.addEventListener("click", (event) => {
   chooseAudioDevice(button.dataset.deviceIndex);
 });
 autoRefreshEl.addEventListener("change", scheduleAutoRefresh);
-confidenceFilterEl.addEventListener("input", () => {
-  updateConfidenceLabel();
-  loadDetections();
-});
 
-updateConfidenceLabel();
 scheduleAutoRefresh();
 loadDetections();
 loadStationStatus();

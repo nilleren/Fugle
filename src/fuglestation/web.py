@@ -483,18 +483,33 @@ def species_stats() -> FileResponse:
 @app.get("/api/detections")
 def api_detections(
     limit: int = Query(default=25, ge=1, le=200),
-    min_confidence: float = Query(default=0.0, ge=0.0, le=1.0),
+    min_confidence: float | None = Query(default=None, ge=0.0, le=1.0),
 ) -> dict[str, object]:
     """Return recent detections from SQLite."""
 
+    config = load_config(CONFIG_PATH)
+    birdnet_runtime_config = load_birdnet_runtime_config(config)
+    detection_min_confidence = (
+        min_confidence
+        if min_confidence is not None
+        else birdnet_runtime_config["min_confidence"]
+    )
     database_path = load_database_path(CONFIG_PATH)
-    detections = get_recent_detections(database_path, limit, min_confidence)
-    species_summary = get_species_summary(database_path, 10, min_confidence)
+    detections = get_recent_detections(
+        database_path,
+        limit,
+        detection_min_confidence,
+    )
+    species_summary = get_species_summary(
+        database_path,
+        10,
+        detection_min_confidence,
+    )
 
     return {
         "database": str(database_path),
         "count": len(detections),
-        "min_confidence": min_confidence,
+        "min_confidence": detection_min_confidence,
         "species_summary": [
             species_summary_payload(summary) for summary in species_summary
         ],
