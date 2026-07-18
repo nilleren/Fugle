@@ -97,6 +97,26 @@ def load_database_path(path: Path) -> Path:
     return Path(database_path)
 
 
+def load_recordings_dir(path: Path) -> Path:
+    """Load the audio recordings directory from config.toml."""
+
+    if not path.exists():
+        return Path("recordings")
+
+    with path.open("rb") as config_file:
+        raw_config = tomllib.load(config_file)
+
+    audio_config = raw_config.get("audio", {})
+    if not isinstance(audio_config, dict):
+        return Path("recordings")
+
+    output_dir = audio_config.get("output_dir", "recordings")
+    if not isinstance(output_dir, str) or not output_dir.strip():
+        return Path("recordings")
+
+    return Path(output_dir)
+
+
 def load_config(path: Path) -> dict[str, object]:
     """Load the project config for display in the web UI."""
 
@@ -808,6 +828,58 @@ def api_audio_devices() -> dict[str, object]:
             for microphone in microphones
         ],
     }
+
+
+@app.get("/api/audio/recordings")
+def api_audio_recordings(
+    limit: int = Query(default=3, ge=1, le=20),
+) -> dict[str, object]:
+    """Return the newest locally retained WAV recordings."""
+
+    recordings_dir = load_recordings_dir(CONFIG_PATH)
+    if not recordings_dir.exists():
+        return {
+            "recordings_dir": str(recordings_dir),
+            "count": 0,
+            "recordings": [],
+        }
+
+    recordings = sorted(
+        recordings_dir.glob("*.wav"),
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )[:limit]
+
+    return {
+        "recordings_dir": str(recordings_dir),
+        "count": len(recordings),
+        "recordings": [
+            {
+                "filename": recording.name,
+                "url": f"/api/audio/recordings/{recording.name}",
+                "modified_at": datetime.fromtimestamp(
+                    recording.stat().st_mtime,
+                ).isoformat(timespec="seconds"),
+                "size_bytes": recording.stat().st_size,
+            }
+            for recording in recordings
+        ],
+    }
+
+
+@app.get("/api/audio/recordings/{filename}")
+def api_audio_recording_file(filename: str) -> FileResponse:
+    """Serve one retained WAV recording from the configured recordings folder."""
+
+    if Path(filename).name != filename or not filename.lower().endswith(".wav"):
+        raise HTTPException(status_code=404, detail="Optagelsen blev ikke fundet.")
+
+    recordings_dir = load_recordings_dir(CONFIG_PATH).resolve()
+    recording_path = (recordings_dir / filename).resolve()
+    if recording_path.parent != recordings_dir or not recording_path.exists():
+        raise HTTPException(status_code=404, detail="Optagelsen blev ikke fundet.")
+
+    return FileResponse(recording_path, media_type="audio/wav")
 
 
 @app.post("/api/audio/test-recording")

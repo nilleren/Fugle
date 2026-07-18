@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Fuglestation</title>
-    <link rel="stylesheet" href="/static/styles.css?v=20260715-wall-latin-toggle" />
+    <link rel="stylesheet" href="/static/styles.css?v=20260718-recordings" />
   </head>
   <body>
     <main class="page">
@@ -194,6 +194,17 @@
         <div id="audio-devices-list" class="audio-devices-list"></div>
       </section>
 
+      <section class="recordings-panel" aria-label="Seneste optagelser">
+        <div class="section-heading">
+          <h2>Seneste optagelser</h2>
+          <div class="section-actions">
+            <span id="recordings-status" class="muted">Indlæser optagelser...</span>
+            <button id="refresh-recordings-button" type="button">Opdater optagelser</button>
+          </div>
+        </div>
+        <div id="recordings-list" class="recordings-list"></div>
+      </section>
+
       <section class="summary" aria-label="Status">
         <div>
           <span class="label">Detektioner</span>
@@ -232,6 +243,6 @@
       </section>
     </main>
 
-    <script src="/static/app.js?v=20260718-confidence-settings"></script>
+    <script src="/static/app.js?v=20260718-recordings"></script>
   </body>
 </html>

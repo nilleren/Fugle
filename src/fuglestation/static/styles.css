@@ -174,7 +174,8 @@ button:disabled {
 }
 
 .config-panel,
-.audio-devices-panel {
+.audio-devices-panel,
+.recordings-panel {
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -279,6 +280,36 @@ button:disabled {
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 10px;
   margin-top: 12px;
+}
+
+.recordings-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.recording-item {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcf9;
+}
+
+.recording-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.recording-header strong {
+  overflow-wrap: anywhere;
+}
+
+.recording-item audio {
+  width: 100%;
 }
 
 .audio-device {

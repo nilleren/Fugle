@@ -27,6 +27,9 @@ const audioDevicesListEl = document.querySelector("#audio-devices-list");
 const testRecordingButton = document.querySelector("#test-recording-button");
 const testRecordingStatusEl = document.querySelector("#test-recording-status");
 const audioDeviceSaveStatusEl = document.querySelector("#audio-device-save-status");
+const recordingsStatusEl = document.querySelector("#recordings-status");
+const recordingsListEl = document.querySelector("#recordings-list");
+const refreshRecordingsButton = document.querySelector("#refresh-recordings-button");
 const runtimeSettingsForm = document.querySelector("#runtime-settings-form");
 const siteTitleSettingEl = document.querySelector("#site-title-setting");
 const durationSettingEl = document.querySelector("#duration-setting");
@@ -71,6 +74,14 @@ function formatDateTime(value) {
     return "-";
   }
   return new Date(value).toLocaleString("da-DK");
+}
+
+function formatBytes(value) {
+  const bytes = Number(value) || 0;
+  if (bytes < 1024 * 1024) {
+    return `${Math.round(bytes / 1024)} KB`;
+  }
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function formatGeo(config) {
@@ -216,6 +227,44 @@ function renderAudioDevices(data) {
   }
 }
 
+function renderRecordings(recordings) {
+  recordingsListEl.replaceChildren();
+
+  if (recordings.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "muted";
+    empty.textContent = "Ingen WAV-optagelser fundet endnu.";
+    recordingsListEl.append(empty);
+    return;
+  }
+
+  for (const recording of recordings) {
+    const item = document.createElement("article");
+    item.className = "recording-item";
+
+    const header = document.createElement("div");
+    header.className = "recording-header";
+
+    const name = document.createElement("strong");
+    name.textContent = recording.filename;
+
+    const meta = document.createElement("span");
+    meta.className = "muted";
+    meta.textContent = `${formatDateTime(recording.modified_at)} · ${formatBytes(
+      recording.size_bytes,
+    )}`;
+
+    const audio = document.createElement("audio");
+    audio.controls = true;
+    audio.preload = "none";
+    audio.src = recording.url;
+
+    header.append(name, meta);
+    item.append(header, audio);
+    recordingsListEl.append(item);
+  }
+}
+
 async function loadDetections() {
   statusEl.classList.remove("error");
   statusEl.textContent = "Indlæser seneste detektioner...";
@@ -334,6 +383,29 @@ async function loadAudioDevices() {
   }
 }
 
+async function loadRecordings() {
+  refreshRecordingsButton.disabled = true;
+  recordingsStatusEl.classList.remove("error");
+  recordingsStatusEl.textContent = "Indlæser optagelser...";
+
+  try {
+    const response = await fetch("/api/audio/recordings?limit=3");
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.detail || `HTTP ${response.status}`);
+    }
+
+    recordingsStatusEl.textContent = `${data.count} optagelse(r) fundet`;
+    renderRecordings(data.recordings);
+  } catch (error) {
+    recordingsStatusEl.classList.add("error");
+    recordingsStatusEl.textContent = `Kunne ikke hente optagelser: ${error.message}`;
+    recordingsListEl.replaceChildren();
+  } finally {
+    refreshRecordingsButton.disabled = false;
+  }
+}
+
 async function chooseAudioDevice(deviceIndex) {
   audioDeviceSaveStatusEl.classList.remove("error");
   audioDeviceSaveStatusEl.textContent = `Gemmer device ${deviceIndex}...`;
@@ -356,6 +428,7 @@ async function chooseAudioDevice(deviceIndex) {
     audioDeviceSaveStatusEl.textContent = `${result.message} Device ${result.device}: ${result.microphone.name}`;
     await loadConfig();
     await loadAudioDevices();
+    await loadRecordings();
   } catch (error) {
     audioDeviceSaveStatusEl.classList.add("error");
     audioDeviceSaveStatusEl.textContent = `Kunne ikke gemme mikrofonvalg: ${error.message}`;
@@ -480,6 +553,7 @@ async function testRecording() {
     } (${result.duration_seconds} sek., ${result.sample_rate} Hz, device ${
       result.microphone.index
     })`;
+    await loadRecordings();
   } catch (error) {
     testRecordingStatusEl.classList.add("error");
     testRecordingStatusEl.textContent = `Testoptagelse fejlede: ${error.message}`;
@@ -527,10 +601,12 @@ refreshButton.addEventListener("click", () => {
   loadStationStatus();
   loadConfig();
   loadAudioDevices();
+  loadRecordings();
 });
 startSchedulerButton.addEventListener("click", () => controlScheduler("start"));
 stopSchedulerButton.addEventListener("click", () => controlScheduler("stop"));
 testRecordingButton.addEventListener("click", testRecording);
+refreshRecordingsButton.addEventListener("click", loadRecordings);
 runtimeSettingsForm.addEventListener("submit", saveRuntimeSettings);
 resetDefaultSettingsButton.addEventListener("click", resetDefaultSettings);
 audioDevicesListEl.addEventListener("click", (event) => {
@@ -547,3 +623,4 @@ loadDetections();
 loadStationStatus();
 loadConfig();
 loadAudioDevices();
+loadRecordings();
