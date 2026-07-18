@@ -154,9 +154,7 @@ function renderStats(data) {
 
 async function loadStats() {
   try {
-    const response = await fetch(
-      `/api/stats?days=${selectedDays}&limit=24&min_confidence=0.05`,
-    );
+    const response = await fetch(`/api/stats?days=${selectedDays}&limit=24`);
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
