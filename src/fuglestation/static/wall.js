@@ -172,6 +172,7 @@ function displaySettingsChanged(previousData, nextData) {
     previousData.size_mode !== nextData.size_mode ||
     previousData.limit !== nextData.limit ||
     previousData.recent_minutes !== nextData.recent_minutes ||
+    previousData.min_confidence !== nextData.min_confidence ||
     previousData.show_shadows !== nextData.show_shadows
   );
 }
@@ -673,7 +674,7 @@ function updateWallFooter(data) {
 
 async function loadWall() {
   try {
-    const response = await fetch("/api/wall?min_confidence=0.05");
+    const response = await fetch("/api/wall");
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
