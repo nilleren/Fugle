@@ -11,7 +11,7 @@ from re import sub
 from shutil import copyfile
 
 from fastapi import FastAPI, HTTPException, Query
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -26,8 +26,10 @@ from fuglestation.database import (
     get_species_statistics,
     get_species_statistics_for_name,
 )
+from fuglestation.eink_image import render_eink_wall_image
 from fuglestation.record_audio import build_output_path
 from fuglestation.record_audio import Microphone
+from fuglestation.record_audio import find_preferred_microphone
 from fuglestation.record_audio import load_config as load_audio_config
 from fuglestation.record_audio import get_microphones, record_audio
 from fuglestation.species_names import format_species_name
@@ -240,16 +242,14 @@ def get_configured_microphone() -> tuple[Microphone, int, Path, int]:
 
     audio_config = load_audio_config(CONFIG_PATH)
     microphones = get_microphones()
-    microphone_by_index = {microphone.index: microphone for microphone in microphones}
 
-    if audio_config.device is None:
-        raise RuntimeError("audio.device mangler i config.toml.")
-
-    microphone = microphone_by_index.get(audio_config.device)
+    microphone = find_preferred_microphone(
+        microphones,
+        audio_config.device,
+        audio_config.device_name,
+    )
     if microphone is None:
-        raise RuntimeError(
-            f"Mikrofonnummer {audio_config.device} blev ikke fundet."
-        )
+        raise RuntimeError("Der blev ikke fundet en brugbar input-mikrofon.")
 
     sample_rate = audio_config.sample_rate or microphone.default_samplerate
     output_path = build_output_path(audio_config.output_dir)
@@ -262,7 +262,8 @@ def format_toml_value(value: int | float | str | bool) -> str:
     if isinstance(value, bool):
         return "true" if value else "false"
     if isinstance(value, str):
-        return f'"{value}"'
+        escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+        return f'"{escaped}"'
     return str(value)
 
 
@@ -326,10 +327,13 @@ def write_config_values(
     path.write_text("\n".join(output_lines) + "\n", encoding="utf-8")
 
 
-def write_audio_device_to_config(path: Path, device: int) -> None:
-    """Update only audio.device in config.toml."""
+def write_audio_device_to_config(path: Path, microphone: Microphone) -> None:
+    """Update the preferred audio device in config.toml."""
 
-    write_config_values(path, {"audio": {"device": device}})
+    write_config_values(
+        path,
+        {"audio": {"device": microphone.index, "device_name": microphone.name}},
+    )
 
 
 def validate_time_value(value: str, field_name: str) -> str:
@@ -443,6 +447,62 @@ def load_birdnet_runtime_config(config: dict[str, object]) -> dict[str, float]:
     }
 
 
+def wall_payload(
+    limit: int | None = None,
+    min_confidence: float | None = None,
+    recent_minutes: int | None = None,
+) -> dict[str, object]:
+    """Return species data shaped for wall-like displays."""
+
+    config = load_config(CONFIG_PATH)
+    site_config = load_site_config(config)
+    wall_config = load_wall_config(config)
+    wall_limit = limit or wall_config["max_species"]
+    wall_recent_minutes = recent_minutes or wall_config["recent_minutes"]
+    wall_min_confidence = (
+        min_confidence
+        if min_confidence is not None
+        else wall_config["min_confidence"]
+    )
+    since_analyzed_at = (
+        datetime.now() - timedelta(minutes=wall_recent_minutes)
+    ).isoformat(timespec="seconds")
+
+    database_path = load_database_path(CONFIG_PATH)
+    species_summary = get_species_summary(
+        database_path,
+        wall_limit,
+        wall_min_confidence,
+        since_analyzed_at=since_analyzed_at,
+        exclusive_min_confidence=True,
+    )
+    using_recent_window = True
+    if not species_summary:
+        species_summary = get_species_summary(
+            database_path,
+            wall_limit,
+            wall_min_confidence,
+            exclusive_min_confidence=True,
+        )
+        using_recent_window = False
+
+    return {
+        "count": len(species_summary),
+        "site_title": site_config["title"],
+        "min_confidence": wall_min_confidence,
+        "limit": wall_limit,
+        "recent_minutes": wall_recent_minutes,
+        "using_recent_window": using_recent_window,
+        "show_names": wall_config["show_names"],
+        "show_latin_names": wall_config["show_latin_names"],
+        "show_footer": wall_config["show_footer"],
+        "show_shadows": wall_config["show_shadows"],
+        "size_mode": wall_config["size_mode"],
+        "updated_at": now_iso(),
+        "species": [species_summary_payload(summary) for summary in species_summary],
+    }
+
+
 app = FastAPI(title="Fuglestation")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 app.mount("/assets", StaticFiles(directory=ASSETS_DIR), name="assets")
@@ -505,7 +565,7 @@ def species_stats() -> FileResponse:
 
 @app.get("/api/detections")
 def api_detections(
-    limit: int = Query(default=25, ge=1, le=200),
+    limit: int = Query(default=25, ge=1, le=10000),
     min_confidence: float | None = Query(default=None, ge=0.0, le=1.0),
 ) -> dict[str, object]:
     """Return recent detections from SQLite."""
@@ -557,6 +617,7 @@ def api_stats(
     days: int = Query(default=30, ge=0, le=366),
     limit: int = Query(default=24, ge=1, le=80),
     min_confidence: float | None = Query(default=None, ge=0.0, le=1.0),
+    hour: int | None = Query(default=None, ge=0, le=23),
 ) -> dict[str, object]:
     """Return detection statistics for the mobile statistics view."""
 
@@ -578,19 +639,27 @@ def api_stats(
         database_path,
         min_confidence=stats_min_confidence,
         since_analyzed_at=since_analyzed_at,
+        hour=hour,
     )
     species_statistics = get_species_statistics(
         database_path,
         limit=limit,
         min_confidence=stats_min_confidence,
         since_analyzed_at=since_analyzed_at,
+        hour=hour,
+    )
+    hourly_species_statistics = get_species_statistics(
+        database_path,
+        limit=80,
+        min_confidence=stats_min_confidence,
+        since_analyzed_at=since_analyzed_at,
     )
 
     all_hourly_counts = [0] * 24
-    for species in species_statistics:
-        for hour, count in species.hourly_counts.items():
-            if 0 <= hour <= 23:
-                all_hourly_counts[hour] += count
+    for species in hourly_species_statistics:
+        for hour_index, count in species.hourly_counts.items():
+            if 0 <= hour_index <= 23:
+                all_hourly_counts[hour_index] += count
 
     return {
         "database": str(database_path),
@@ -598,6 +667,7 @@ def api_stats(
         "days": days,
         "limit": limit,
         "min_confidence": stats_min_confidence,
+        "hour": hour,
         "updated_at": now_iso(),
         "overview": {
             "detection_count": overview.detection_count,
@@ -629,6 +699,8 @@ def api_stats(
 def api_species_stats(
     species_name: str = Query(min_length=1),
     min_confidence: float | None = Query(default=None, ge=0.0, le=1.0),
+    hour: int | None = Query(default=None, ge=0, le=23),
+    month: int | None = Query(default=None, ge=1, le=12),
 ) -> dict[str, object]:
     """Return all-time statistics for one species."""
 
@@ -641,28 +713,113 @@ def api_species_stats(
         if min_confidence is not None
         else birdnet_runtime_config["min_confidence"]
     )
-    species = get_species_statistics_for_name(
+    base_species = get_species_statistics_for_name(
         database_path,
         species_name=species_name,
         min_confidence=stats_min_confidence,
     )
-    if species is None:
+    if base_species is None:
         raise HTTPException(status_code=404, detail="Arten blev ikke fundet.")
+    species = get_species_statistics_for_name(
+        database_path,
+        species_name=species_name,
+        min_confidence=stats_min_confidence,
+        hour=hour,
+        month=month,
+    )
+    hour_distribution_species = get_species_statistics_for_name(
+        database_path,
+        species_name=species_name,
+        min_confidence=stats_min_confidence,
+        month=month,
+    )
+    month_distribution_species = get_species_statistics_for_name(
+        database_path,
+        species_name=species_name,
+        min_confidence=stats_min_confidence,
+        hour=hour,
+    )
+    if species is None:
+        species = base_species
+        species_count = 0
+        species_recording_count = 0
+        species_best_confidence = 0.0
+        species_latest_confidence = 0.0
+        species_first_analyzed_at = None
+        species_latest_analyzed_at = None
+        species_latest_recording_path = Path("")
+        species_match_history = []
+    else:
+        species_count = species.count
+        species_recording_count = species.recording_count
+        species_best_confidence = species.best_confidence
+        species_latest_confidence = species.latest_confidence
+        species_first_analyzed_at = species.first_analyzed_at
+        species_latest_analyzed_at = species.latest_analyzed_at
+        species_latest_recording_path = Path(species.latest_recording_path)
+        species_match_history = species.match_history
+
+    recordings_dir = load_recordings_dir(CONFIG_PATH).resolve()
+    latest_recording_path = species_latest_recording_path
+
+    def recording_url(recording_path: Path) -> str | None:
+        if not recording_path.name:
+            return None
+        resolved_recording_path = recording_path.resolve()
+        if (
+            resolved_recording_path.parent == recordings_dir
+            and resolved_recording_path.exists()
+        ):
+            return f"/api/audio/recordings/{resolved_recording_path.name}"
+        return None
+
+    latest_clip = load_species_clip_index(DEFAULT_SPECIES_CLIPS_DIR).get(
+        species.species_name,
+    )
+    latest_audio_url = None
+    if latest_clip and latest_clip.get("filename"):
+        latest_audio_url = f"/api/audio/species-clips/{latest_clip['filename']}"
+    if latest_audio_url is None:
+        latest_audio_url = recording_url(latest_recording_path)
+    if species_count == 0:
+        latest_audio_url = None
 
     return {
         "database": str(database_path),
         "site_title": site_config["title"],
         "min_confidence": stats_min_confidence,
+        "hour": hour,
+        "month": month,
         "updated_at": now_iso(),
         "species": {
-            **species_summary_payload(species),
-            "recording_count": species.recording_count,
-            "first_analyzed_at": species.first_analyzed_at,
+            **{
+                **species_summary_payload(base_species),
+                "count": species_count,
+                "best_confidence": species_best_confidence,
+                "latest_analyzed_at": species_latest_analyzed_at,
+            },
+            "recording_count": species_recording_count,
+            "latest_confidence": species_latest_confidence,
+            "first_analyzed_at": species_first_analyzed_at,
+            "latest_analyzed_at": species_latest_analyzed_at,
+            "latest_recording_name": latest_recording_path.name,
+            "latest_recording_url": latest_audio_url,
+            "match_history": [
+                {
+                    "analyzed_at": match.analyzed_at,
+                    "confidence": match.confidence,
+                    "recording_name": Path(match.recording_path).name,
+                    "recording_url": recording_url(Path(match.recording_path)),
+                }
+                for match in species_match_history
+            ],
             "hourly_counts": [
-                species.hourly_counts.get(hour, 0) for hour in range(24)
+                (hour_distribution_species or base_species).hourly_counts.get(hour, 0)
+                for hour in range(24)
             ],
             "monthly_counts": [
-                species.monthly_counts.get(month, 0) for month in range(1, 13)
+                (month_distribution_species or base_species).monthly_counts.get(month, 0)
+                for month in range(1, 13)
             ],
         },
     }
@@ -676,53 +833,99 @@ def api_wall(
 ) -> dict[str, object]:
     """Return species data shaped for the wall display."""
 
-    config = load_config(CONFIG_PATH)
-    site_config = load_site_config(config)
-    wall_config = load_wall_config(config)
-    wall_limit = limit or wall_config["max_species"]
-    wall_recent_minutes = recent_minutes or wall_config["recent_minutes"]
-    wall_min_confidence = (
-        min_confidence
-        if min_confidence is not None
-        else wall_config["min_confidence"]
-    )
-    since_analyzed_at = (
-        datetime.now() - timedelta(minutes=wall_recent_minutes)
-    ).isoformat(timespec="seconds")
+    return wall_payload(limit, min_confidence, recent_minutes)
 
-    database_path = load_database_path(CONFIG_PATH)
-    species_summary = get_species_summary(
-        database_path,
-        wall_limit,
-        wall_min_confidence,
-        since_analyzed_at=since_analyzed_at,
-        exclusive_min_confidence=True,
-    )
-    using_recent_window = True
-    if not species_summary:
-        species_summary = get_species_summary(
-            database_path,
-            wall_limit,
-            wall_min_confidence,
-            exclusive_min_confidence=True,
+
+def eink_response(
+    output_format: str,
+    landscape: bool,
+    width: int | None,
+    height: int | None,
+    limit: int | None,
+    min_confidence: float | None,
+    recent_minutes: int | None,
+    palette: str,
+) -> Response:
+    """Return the current wall view as an eInk-friendly image."""
+
+    if palette not in {"auto", "rgb", "spectra"}:
+        raise HTTPException(
+            status_code=400,
+            detail="palette skal vaere auto, rgb eller spectra.",
         )
-        using_recent_window = False
+    use_spectra_palette = palette == "spectra" or (
+        palette == "auto" and output_format == "PNG"
+    )
+    payload = wall_payload(limit, min_confidence, recent_minutes)
+    image = render_eink_wall_image(
+        payload,
+        BIRD_ASSETS_DIR,
+        width,
+        height,
+        landscape=landscape,
+        output_format=output_format,
+        use_spectra_palette=use_spectra_palette,
+    )
+    media_type = "image/jpeg" if output_format == "JPEG" else "image/png"
+    extension = "jpg" if output_format == "JPEG" else "png"
+    return Response(
+        content=image,
+        media_type=media_type,
+        headers={
+            "Cache-Control": "no-cache, max-age=0",
+            "Content-Disposition": f'inline; filename="fuglestation-eink.{extension}"',
+        },
+    )
 
-    return {
-        "count": len(species_summary),
-        "site_title": site_config["title"],
-        "min_confidence": wall_min_confidence,
-        "limit": wall_limit,
-        "recent_minutes": wall_recent_minutes,
-        "using_recent_window": using_recent_window,
-        "show_names": wall_config["show_names"],
-        "show_latin_names": wall_config["show_latin_names"],
-        "show_footer": wall_config["show_footer"],
-        "show_shadows": wall_config["show_shadows"],
-        "size_mode": wall_config["size_mode"],
-        "updated_at": now_iso(),
-        "species": [species_summary_payload(summary) for summary in species_summary],
-    }
+
+@app.get("/eink.png")
+@app.get("/api/eink.png")
+def eink_png(
+    landscape: bool = False,
+    width: int | None = Query(default=None, ge=320, le=2400),
+    height: int | None = Query(default=None, ge=240, le=2400),
+    limit: int | None = Query(default=None, ge=1, le=60),
+    min_confidence: float | None = Query(default=None, ge=0.0, le=1.0),
+    recent_minutes: int | None = Query(default=None, ge=1, le=10080),
+    palette: str = Query(default="auto"),
+) -> Response:
+    """Return the current wall view as a PNG for an eInk controller."""
+
+    return eink_response(
+        "PNG",
+        landscape,
+        width,
+        height,
+        limit,
+        min_confidence,
+        recent_minutes,
+        palette,
+    )
+
+
+@app.get("/eink.jpg")
+@app.get("/api/eink.jpg")
+def eink_jpg(
+    landscape: bool = False,
+    width: int | None = Query(default=None, ge=320, le=2400),
+    height: int | None = Query(default=None, ge=240, le=2400),
+    limit: int | None = Query(default=None, ge=1, le=60),
+    min_confidence: float | None = Query(default=None, ge=0.0, le=1.0),
+    recent_minutes: int | None = Query(default=None, ge=1, le=10080),
+    palette: str = Query(default="auto"),
+) -> Response:
+    """Return the current wall view as a JPEG for an eInk controller."""
+
+    return eink_response(
+        "JPEG",
+        landscape,
+        width,
+        height,
+        limit,
+        min_confidence,
+        recent_minutes,
+        palette,
+    )
 
 
 @app.get("/api/status")
@@ -770,6 +973,7 @@ def api_config() -> dict[str, object]:
         "site": site_config,
         "audio": {
             "device": audio_config.get("device", 0),
+            "device_name": audio_config.get("device_name", ""),
             "duration_seconds": audio_config.get("duration_seconds", 10),
             "recordings_to_keep": audio_config.get("recordings_to_keep", 3),
             "sample_rate": audio_config.get("sample_rate", 44100),
@@ -815,22 +1019,49 @@ def api_audio_devices() -> dict[str, object]:
     config = api_config()
     audio_config = config["audio"]
     configured_device = audio_config["device"]
+    configured_device_name = audio_config.get("device_name")
     microphones = get_microphones()
+    selected_microphone = find_preferred_microphone(
+        microphones,
+        configured_device,
+        configured_device_name if isinstance(configured_device_name, str) else None,
+    )
+    selected_index = selected_microphone.index if selected_microphone else None
+    device_payload = [
+        {
+            "index": microphone.index,
+            "name": microphone.name,
+            "host_api": microphone.host_api,
+            "max_input_channels": microphone.max_input_channels,
+            "default_samplerate": microphone.default_samplerate,
+            "configured": microphone.index == selected_index,
+        }
+        for microphone in microphones
+    ]
+
+    if (
+        not device_payload
+        and isinstance(configured_device, int)
+        and isinstance(configured_device_name, str)
+        and configured_device_name
+    ):
+        device_payload.append(
+            {
+                "index": configured_device,
+                "name": configured_device_name,
+                "host_api": "Gemt valg",
+                "max_input_channels": 1,
+                "default_samplerate": audio_config["sample_rate"],
+                "configured": True,
+            }
+        )
 
     return {
         "configured_device": configured_device,
+        "configured_device_name": configured_device_name,
+        "selected_device": selected_index,
         "count": len(microphones),
-        "devices": [
-            {
-                "index": microphone.index,
-                "name": microphone.name,
-                "host_api": microphone.host_api,
-                "max_input_channels": microphone.max_input_channels,
-                "default_samplerate": microphone.default_samplerate,
-                "configured": microphone.index == configured_device,
-            }
-            for microphone in microphones
-        ],
+        "devices": device_payload,
     }
 
 
@@ -975,7 +1206,7 @@ def api_config_audio_device(update: AudioDeviceUpdate) -> dict[str, object]:
         )
 
     try:
-        write_audio_device_to_config(CONFIG_PATH, update.device)
+        write_audio_device_to_config(CONFIG_PATH, microphone)
     except RuntimeError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
 

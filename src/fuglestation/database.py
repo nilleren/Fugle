@@ -40,11 +40,23 @@ class SpeciesStatistics:
     count: int
     recording_count: int
     best_confidence: float
+    latest_confidence: float
     first_analyzed_at: str
     latest_analyzed_at: str
+    latest_recording_path: str
     hourly_counts: dict[int, int]
     daily_counts: dict[str, int]
     monthly_counts: dict[int, int]
+    match_history: list[SpeciesMatch]
+
+
+@dataclass(frozen=True)
+class SpeciesMatch:
+    """One recording-level match for a species."""
+
+    analyzed_at: str
+    confidence: float
+    recording_path: str
 
 
 @dataclass(frozen=True)
@@ -303,11 +315,14 @@ def get_detection_overview(
     database_path: Path,
     min_confidence: float = 0.0,
     since_analyzed_at: str | None = None,
+    hour: int | None = None,
 ) -> DetectionOverview:
     """Read overall statistics for detections in a time window."""
 
     if not 0 <= min_confidence <= 1:
         raise ValueError("min_confidence skal vaere mellem 0 og 1.")
+    if hour is not None and not 0 <= hour <= 23:
+        raise ValueError("hour skal vaere mellem 0 og 23.")
     if not database_path.exists():
         return DetectionOverview(0, 0, 0, None, None)
 
@@ -318,6 +333,9 @@ def get_detection_overview(
         if since_analyzed_at is not None:
             where_clauses.append("recordings.analyzed_at >= ?")
             params.append(since_analyzed_at)
+        if hour is not None:
+            where_clauses.append("CAST(substr(recordings.analyzed_at, 12, 2) AS INTEGER) = ?")
+            params.append(hour)
 
         row = connection.execute(
             """
@@ -347,6 +365,7 @@ def get_species_statistics(
     limit: int,
     min_confidence: float = 0.0,
     since_analyzed_at: str | None = None,
+    hour: int | None = None,
 ) -> list[SpeciesStatistics]:
     """Read per-species statistics including hourly and daily distributions."""
 
@@ -354,6 +373,8 @@ def get_species_statistics(
         raise ValueError("limit skal vaere mindst 1.")
     if not 0 <= min_confidence <= 1:
         raise ValueError("min_confidence skal vaere mellem 0 og 1.")
+    if hour is not None and not 0 <= hour <= 23:
+        raise ValueError("hour skal vaere mellem 0 og 23.")
     if not database_path.exists():
         return []
 
@@ -362,6 +383,9 @@ def get_species_statistics(
     if since_analyzed_at is not None:
         where_clauses.append("recordings.analyzed_at >= ?")
         params.append(since_analyzed_at)
+    if hour is not None:
+        where_clauses.append("CAST(substr(recordings.analyzed_at, 12, 2) AS INTEGER) = ?")
+        params.append(hour)
     where_sql = " AND ".join(where_clauses)
 
     with connect(database_path) as connection:
@@ -462,11 +486,14 @@ def get_species_statistics(
             count=int(row[1]),
             recording_count=int(row[2]),
             best_confidence=float(row[3]),
+            latest_confidence=float(row[3]),
             first_analyzed_at=str(row[4]),
             latest_analyzed_at=str(row[5]),
+            latest_recording_path="",
             hourly_counts=hourly_by_species[str(row[0])],
             daily_counts=daily_by_species[str(row[0])],
             monthly_counts=monthly_by_species[str(row[0])],
+            match_history=[],
         )
         for row in summary_rows
     ]
@@ -476,13 +503,29 @@ def get_species_statistics_for_name(
     database_path: Path,
     species_name: str,
     min_confidence: float = 0.0,
+    hour: int | None = None,
+    month: int | None = None,
 ) -> SpeciesStatistics | None:
     """Read all-time statistics for one species."""
 
     if not 0 <= min_confidence <= 1:
         raise ValueError("min_confidence skal vaere mellem 0 og 1.")
+    if hour is not None and not 0 <= hour <= 23:
+        raise ValueError("hour skal vaere mellem 0 og 23.")
+    if month is not None and not 1 <= month <= 12:
+        raise ValueError("month skal vaere mellem 1 og 12.")
     if not database_path.exists():
         return None
+
+    where_clauses = ["detections.confidence >= ?", "detections.species_name = ?"]
+    params: list[object] = [min_confidence, species_name]
+    if hour is not None:
+        where_clauses.append("CAST(substr(recordings.analyzed_at, 12, 2) AS INTEGER) = ?")
+        params.append(hour)
+    if month is not None:
+        where_clauses.append("CAST(substr(recordings.analyzed_at, 6, 2) AS INTEGER) = ?")
+        params.append(month)
+    where_sql = " AND ".join(where_clauses)
 
     with connect(database_path) as connection:
         initialize_database(connection)
@@ -497,10 +540,10 @@ def get_species_statistics_for_name(
                 MAX(recordings.analyzed_at) AS latest_analyzed_at
             FROM detections
             JOIN recordings ON recordings.id = detections.recording_id
-            WHERE detections.confidence >= ? AND detections.species_name = ?
+            WHERE """ + where_sql + """
             GROUP BY detections.species_name
             """,
-            (min_confidence, species_name),
+            params,
         ).fetchone()
 
         if summary_row is None:
@@ -513,10 +556,10 @@ def get_species_statistics_for_name(
                 COUNT(*) AS detection_count
             FROM detections
             JOIN recordings ON recordings.id = detections.recording_id
-            WHERE detections.confidence >= ? AND detections.species_name = ?
+            WHERE """ + where_sql + """
             GROUP BY hour
             """,
-            (min_confidence, species_name),
+            params,
         ).fetchall()
 
         monthly_rows = connection.execute(
@@ -526,10 +569,39 @@ def get_species_statistics_for_name(
                 COUNT(*) AS detection_count
             FROM detections
             JOIN recordings ON recordings.id = detections.recording_id
-            WHERE detections.confidence >= ? AND detections.species_name = ?
+            WHERE """ + where_sql + """
             GROUP BY month
             """,
-            (min_confidence, species_name),
+            params,
+        ).fetchall()
+
+        latest_row = connection.execute(
+            """
+            SELECT
+                detections.confidence,
+                recordings.audio_path
+            FROM detections
+            JOIN recordings ON recordings.id = detections.recording_id
+            WHERE """ + where_sql + """
+            ORDER BY recordings.analyzed_at DESC, detections.confidence DESC
+            LIMIT 1
+            """,
+            params,
+        ).fetchone()
+
+        history_rows = connection.execute(
+            """
+            SELECT
+                recordings.analyzed_at,
+                MAX(detections.confidence) AS best_confidence,
+                recordings.audio_path
+            FROM detections
+            JOIN recordings ON recordings.id = detections.recording_id
+            WHERE """ + where_sql + """
+            GROUP BY recordings.id, recordings.analyzed_at, recordings.audio_path
+            ORDER BY recordings.analyzed_at DESC
+            """,
+            params,
         ).fetchall()
 
     return SpeciesStatistics(
@@ -537,8 +609,10 @@ def get_species_statistics_for_name(
         count=int(summary_row[1]),
         recording_count=int(summary_row[2]),
         best_confidence=float(summary_row[3]),
+        latest_confidence=float(latest_row[0]) if latest_row is not None else 0.0,
         first_analyzed_at=str(summary_row[4]),
         latest_analyzed_at=str(summary_row[5]),
+        latest_recording_path=str(latest_row[1]) if latest_row is not None else "",
         hourly_counts={
             int(hour): int(count)
             for hour, count in hourly_rows
@@ -550,4 +624,12 @@ def get_species_statistics_for_name(
             for month, count in monthly_rows
             if month is not None
         },
+        match_history=[
+            SpeciesMatch(
+                analyzed_at=str(analyzed_at),
+                confidence=float(confidence),
+                recording_path=str(recording_path),
+            )
+            for analyzed_at, confidence, recording_path in history_rows
+        ],
     )

@@ -4,6 +4,7 @@ const speciesCountEl = document.querySelector("#species-count");
 const databaseEl = document.querySelector("#database-path");
 const bodyEl = document.querySelector("#detections-body");
 const emptyEl = document.querySelector("#empty-state");
+const showAllDetectionsButton = document.querySelector("#show-all-detections-button");
 const refreshButton = document.querySelector("#refresh-button");
 const autoRefreshEl = document.querySelector("#auto-refresh");
 const speciesSummaryEl = document.querySelector("#species-summary");
@@ -67,7 +68,14 @@ const resetDefaultSettingsButton = document.querySelector(
 const runtimeSettingsStatusEl = document.querySelector("#runtime-settings-status");
 
 const REFRESH_INTERVAL_MS = 10000;
+const COLLAPSED_DETECTION_LIMIT = 25;
+const EXPANDED_DETECTION_LIMIT = 10000;
 let refreshTimer = null;
+let showAllDetections = false;
+
+function danishBirdName(displayName) {
+  return String(displayName || "").split("/")[0].trim();
+}
 
 function formatPercent(value) {
   return `${Math.round(value * 1000) / 10}%`;
@@ -142,7 +150,9 @@ function renderRows(detections) {
 
     const species = document.createElement("td");
     species.innerHTML = `<span class="species"></span>`;
-    species.querySelector(".species").textContent = detection.display_name;
+    species.querySelector(".species").textContent = danishBirdName(
+      detection.display_name,
+    );
 
     const confidence = document.createElement("td");
     confidence.className = "confidence";
@@ -182,7 +192,7 @@ function renderSpeciesSummary(speciesSummary) {
     item.className = "species-card";
 
     const name = document.createElement("strong");
-    name.textContent = species.display_name;
+    name.textContent = danishBirdName(species.display_name);
 
     const meta = document.createElement("span");
     meta.textContent = `${species.count} fund - bedste ${formatPercent(
@@ -292,7 +302,7 @@ function renderSpeciesClips(clips) {
     header.className = "recording-header";
 
     const name = document.createElement("strong");
-    name.textContent = clip.display_name;
+    name.textContent = danishBirdName(clip.display_name);
 
     const meta = document.createElement("span");
     meta.className = "muted";
@@ -313,18 +323,31 @@ async function loadDetections() {
   statusEl.classList.remove("error");
   statusEl.textContent = "Indlæser seneste detektioner...";
   refreshButton.disabled = true;
+  showAllDetectionsButton.disabled = true;
 
   try {
-    const params = new URLSearchParams({ limit: "50" });
+    const limit = showAllDetections
+      ? EXPANDED_DETECTION_LIMIT
+      : COLLAPSED_DETECTION_LIMIT + 1;
+    const params = new URLSearchParams({ limit: String(limit) });
     const response = await fetch(`/api/detections?${params.toString()}`);
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
     const data = await response.json();
-    countEl.textContent = String(data.count);
+    const hasMoreDetections =
+      !showAllDetections && data.detections.length > COLLAPSED_DETECTION_LIMIT;
+    const visibleDetections = showAllDetections
+      ? data.detections
+      : data.detections.slice(0, COLLAPSED_DETECTION_LIMIT);
+
+    countEl.textContent = showAllDetections
+      ? String(data.count)
+      : String(visibleDetections.length);
     databaseEl.textContent = data.database;
     renderSpeciesSummary(data.species_summary);
-    renderRows(data.detections);
+    renderRows(visibleDetections);
+    showAllDetectionsButton.hidden = !hasMoreDetections;
     emptyEl.hidden = data.detections.length > 0;
     statusEl.textContent = `Klar - senest opdateret ${new Date().toLocaleTimeString(
       "da-DK",
@@ -334,6 +357,7 @@ async function loadDetections() {
     statusEl.textContent = `Kunne ikke hente detektioner: ${error.message}`;
   } finally {
     refreshButton.disabled = false;
+    showAllDetectionsButton.disabled = false;
   }
 }
 
@@ -372,7 +396,9 @@ async function loadConfig() {
 
     siteTitleSettingEl.value = config.site.title;
     configPathEl.textContent = config.config_path;
-    configDeviceEl.textContent = `Device ${config.audio.device}`;
+    configDeviceEl.textContent = config.audio.device_name
+      ? `Device ${config.audio.device} · ${config.audio.device_name}`
+      : `Device ${config.audio.device}`;
     configAudioEl.textContent = `${config.audio.duration_seconds} sek. ved ${
       config.audio.sample_rate
     } Hz til ${config.audio.output_dir}, gemmer ${
@@ -671,12 +697,17 @@ function scheduleAutoRefresh() {
 }
 
 refreshButton.addEventListener("click", () => {
+  showAllDetections = false;
   loadDetections();
   loadStationStatus();
   loadConfig();
   loadAudioDevices();
   loadRecordings();
   loadSpeciesClips();
+});
+showAllDetectionsButton.addEventListener("click", () => {
+  showAllDetections = true;
+  loadDetections();
 });
 startSchedulerButton.addEventListener("click", () => controlScheduler("start"));
 stopSchedulerButton.addEventListener("click", () => controlScheduler("stop"));

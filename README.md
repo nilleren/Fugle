@@ -350,6 +350,42 @@ Vaegvisningen bruger et kompakt API:
 http://127.0.0.1:8000/api/wall
 ```
 
+eInk-visningen kan hentes som PNG eller JPG:
+
+```text
+http://127.0.0.1:8000/eink.png
+http://127.0.0.1:8000/eink.jpg
+```
+
+Som i flyspotting-projektet bruger eInk-visningen som standard native
+portraetformat `1200x1600`. Brug `landscape=true` til det roterede format
+`1600x1200`:
+
+```text
+http://127.0.0.1:8000/eink.jpg?landscape=true
+```
+
+Til Seeed Studio 13,3" Spectra 6 / EE02 er JPG-endpointet standardvalget.
+Det sendes i fuld RGB med hoej JPEG-kvalitet, saa controlleren faar et rent
+udgangspunkt. Hvis billedet skal forkvantiseres til de seks Spectra-farver
+sort, hvid, gul, roed, groen og blaa, kan `palette=spectra` tilfoejes:
+
+```text
+http://127.0.0.1:8000/eink.jpg?landscape=true&palette=spectra
+```
+
+PNG bruger som standard Spectra-paletten:
+
+```text
+http://127.0.0.1:8000/eink.png?landscape=true
+```
+
+Stoerrelsen kan ogsaa tilpasses skaermen med `width` og `height`:
+
+```text
+http://127.0.0.1:8000/eink.jpg?width=800&height=480
+```
+
 Mobilstatistikken bruger et separat API:
 
 ```text
@@ -618,6 +654,23 @@ Start/stop kan ogsaa kaldes som API:
 POST http://127.0.0.1:8000/api/scheduler/start
 POST http://127.0.0.1:8000/api/scheduler/stop
 ```
+
+## Kreditering
+
+Projektet er inspireret af Avian Visitors:
+
+```text
+https://theodore.net/projects/AvianVisitors/
+```
+
+Fuglelydsgenkendelsen bygger paa BirdNET / BirdNET Analyzer.
+
+Artsdata og danske artsnavne hentes fra eBird.
+
+Fuglebilleder kan genereres med OpenAI, og udviklingen er lavet med hjaelp fra
+Codex.
+
+Baggrundsfjernelse af fuglebilleder bruger rembg/BiRefNet.
 
 ## Nuvaerende fase
 

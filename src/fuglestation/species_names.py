@@ -7,6 +7,10 @@ from pathlib import Path
 
 DANISH_NAMES_PATH = Path(__file__).with_name("danish_species_names.json")
 MANUAL_DANISH_NAMES_BY_SCIENTIFIC_NAME = {
+    "Acanthis cabaret": "Lille Gråsisken",
+    "Accipiter gentilis": "Duehøg",
+    "Charadrius dubius": "Lille Præstekrave",
+    "Corvus monedula": "Allike",
     "Cyanistes caeruleus": "Blåmejse",
     "Sylvia atricapilla": "Munk",
     "Sylvia borin": "Havesanger",

@@ -4,16 +4,16 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Fuglestatistik</title>
-    <link rel="stylesheet" href="/static/stats.css?v=20260715-mobile-stats" />
+    <link rel="stylesheet" href="/static/stats.css?v=20260726-hover-effects" />
   </head>
   <body>
     <main class="stats-page">
       <header class="stats-header">
         <h1 id="stats-title">Fuglene i haven</h1>
         <div class="period-picker" aria-label="Vælg statistikperiode">
-          <button type="button" data-days="1">Seneste døgn</button>
+          <button type="button" data-days="1" data-active="true">Seneste døgn</button>
           <button type="button" data-days="7">Seneste uge</button>
-          <button type="button" data-days="30" data-active="true">Seneste måned</button>
+          <button type="button" data-days="30">Seneste måned</button>
           <button type="button" data-days="0">Al tid</button>
         </div>
       </header>
@@ -52,10 +52,9 @@
       <footer class="stats-footer">
         <a href="/settings/">Dashboard</a>
         <a href="/">Vægvisning</a>
-        <span id="updated-at">-</span>
       </footer>
     </main>
 
-    <script src="/static/stats.js?v=20260718-confidence-default"></script>
+    <script src="/static/stats.js?v=20260726-hour-filter"></script>
   </body>
 </html>

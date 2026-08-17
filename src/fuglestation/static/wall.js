@@ -8,7 +8,7 @@ const WALL_REFRESH_MS = 30000;
 const DAILY_RELOAD_HOUR = 3;
 const FREQUENCY_CHANGE_RATIO = 0.18;
 const FREQUENCY_CHANGE_ABSOLUTE = 2;
-const MASK_URL = "/assets/birds/masks.json?v=20260715-blackbird2-cutout";
+const MASK_URL = "/assets/birds/masks.json?v=20260726-second-variants";
 const GRID_STRIDE = 4;
 const COLLAGE_PAD_CELLS = 4;
 const LABEL_TOP_GAP_CELLS = 2;

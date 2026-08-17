@@ -5,6 +5,8 @@
   --muted: rgba(43, 33, 23, 0.62);
   --line: rgba(43, 33, 23, 0.18);
   --wash: rgba(255, 246, 222, 0.28);
+  --hover: rgba(43, 33, 23, 0.08);
+  --hover-strong: rgba(43, 33, 23, 0.14);
   --display-font: "Bodoni 72", "Libre Bodoni", "Bodoni MT", Didot, Georgia, serif;
 }
 
@@ -63,10 +65,14 @@ h1 {
   border: 0;
   border-left: 1px solid var(--line);
   color: var(--ink);
+  cursor: pointer;
   font: inherit;
   font-size: 14px;
   min-height: 42px;
   padding: 6px 8px;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease;
 }
 
 .period-picker button:first-child {
@@ -75,6 +81,11 @@ h1 {
 
 .period-picker button[data-active="true"] {
   background: rgba(43, 33, 23, 0.12);
+}
+
+.period-picker button:hover,
+.period-picker button:focus-visible {
+  background: var(--hover-strong);
 }
 
 .overview {
@@ -145,10 +156,17 @@ h2 {
 .hour-bar {
   --height: 0%;
   align-items: end;
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
   display: flex;
+  font: inherit;
   height: 100%;
   justify-content: center;
   min-width: 0;
+  padding: 0;
   position: relative;
 }
 
@@ -157,7 +175,23 @@ h2 {
   content: "";
   display: block;
   height: max(2px, var(--height));
+  transition:
+    background-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
   width: 100%;
+}
+
+.hour-bar:hover::before,
+.hour-bar:focus-visible::before {
+  background: var(--ink);
+  box-shadow: 0 0 0 2px rgba(43, 33, 23, 0.16);
+  transform: translateY(-3px);
+}
+
+.hour-bar[data-selected="true"]::before {
+  background: var(--ink);
+  box-shadow: 0 0 0 2px rgba(43, 33, 23, 0.18);
 }
 
 .hour-bar[data-hour="6"]::after,
@@ -178,10 +212,27 @@ h2 {
 }
 
 .top-row {
+  border-radius: 8px;
   color: inherit;
   display: grid;
   gap: 8px;
+  margin-inline: -8px;
+  padding: 6px 8px;
   text-decoration: none;
+  transition:
+    background-color 160ms ease,
+    transform 160ms ease;
+}
+
+.top-row:hover,
+.top-row:focus-visible {
+  background: var(--hover);
+  transform: translateY(-1px);
+}
+
+.top-row:hover .top-row-fill,
+.top-row:focus-visible .top-row-fill {
+  background: var(--ink);
 }
 
 .top-row-main {
@@ -232,6 +283,10 @@ h2 {
   white-space: nowrap;
 }
 
+.top-row-confidence-low {
+  color: #b3261e;
+}
+
 .top-row-count {
   color: var(--muted);
   font-variant-numeric: tabular-nums;
@@ -246,6 +301,7 @@ h2 {
   background: rgba(43, 33, 23, 0.72);
   height: 100%;
   min-width: 2px;
+  transition: background-color 160ms ease;
 }
 
 .show-more-button {
@@ -253,11 +309,21 @@ h2 {
   border: 1px solid var(--line);
   border-radius: 999px;
   color: var(--ink);
+  cursor: pointer;
   font: inherit;
   justify-self: center;
   margin-top: 2px;
   min-height: 38px;
   padding: 0 16px;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease;
+}
+
+.show-more-button:hover,
+.show-more-button:focus-visible {
+  background: var(--hover);
+  border-color: rgba(43, 33, 23, 0.34);
 }
 
 .species-list {
@@ -378,6 +444,34 @@ h2 {
   color: var(--ink);
   padding: 8px 14px;
   text-decoration: none;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease;
+}
+
+.stats-footer a:hover,
+.stats-footer a:focus-visible,
+.back-link:hover,
+.back-link:focus-visible,
+.species-listen-button:hover,
+.species-listen-button:focus-visible,
+.species-history-toggle:hover,
+.species-history-toggle:focus-visible {
+  background: var(--hover);
+  border-color: rgba(43, 33, 23, 0.34);
+}
+
+.period-picker button:focus-visible,
+.hour-bar:focus-visible,
+.year-month:focus-visible,
+.top-row:focus-visible,
+.show-more-button:focus-visible,
+.stats-footer a:focus-visible,
+.back-link:focus-visible,
+.species-listen-button:focus-visible,
+.species-history-toggle:focus-visible {
+  outline: 2px solid rgba(43, 33, 23, 0.42);
+  outline-offset: 3px;
 }
 
 .species-page {
@@ -461,6 +555,116 @@ h2 {
   margin-top: 4px;
 }
 
+.species-timeline > div:nth-child(2) {
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+}
+
+.species-latest-line {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.species-listen-button {
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+  letter-spacing: 0.08em;
+  padding: 8px 14px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.species-listen-button[hidden] {
+  display: none;
+}
+
+.species-latest-audio-player {
+  accent-color: rgba(43, 33, 23, 0.72);
+  background: rgba(255, 248, 235, 0.42);
+  border-radius: 999px;
+  display: block;
+  filter: sepia(0.38) saturate(0.72) brightness(0.96);
+  margin-top: 14px;
+  width: 100%;
+}
+
+.species-latest-audio-player[hidden] {
+  display: none;
+}
+
+.species-first-line {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.species-history-toggle {
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  padding: 8px 14px;
+  text-transform: uppercase;
+}
+
+.species-history-toggle[hidden] {
+  display: none;
+}
+
+.species-history-list {
+  border-top: 1px solid var(--line);
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 10px 0 0;
+}
+
+.species-history-list li {
+  color: var(--muted);
+  font-size: 17px;
+  padding: 5px 0;
+}
+
+.species-history-row {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  justify-content: space-between;
+}
+
+.species-history-more {
+  background: transparent;
+  border: 0;
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.species-history-details {
+  border-left: 1px solid var(--line);
+  list-style: none;
+  margin: 8px 0 4px;
+  padding-left: 12px;
+}
+
+.species-history-details[hidden] {
+  display: none;
+}
+
 .year-chart {
   align-items: end;
   border-bottom: 1px solid var(--line);
@@ -473,11 +677,18 @@ h2 {
 
 .year-month {
   align-items: end;
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
   display: grid;
+  font: inherit;
   gap: 7px;
   grid-template-rows: 1fr auto;
   height: 100%;
   min-width: 0;
+  padding: 0;
 }
 
 .year-bar {
@@ -485,6 +696,22 @@ h2 {
   align-self: end;
   background: rgba(43, 33, 23, 0.72);
   height: max(2px, var(--height));
+  transition:
+    background-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.year-month:hover .year-bar,
+.year-month:focus-visible .year-bar,
+.year-month[data-selected="true"] .year-bar {
+  background: var(--ink);
+  box-shadow: 0 0 0 2px rgba(43, 33, 23, 0.16);
+}
+
+.year-month:hover .year-bar,
+.year-month:focus-visible .year-bar {
+  transform: translateY(-3px);
 }
 
 .year-month span {

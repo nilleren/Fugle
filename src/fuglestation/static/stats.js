@@ -12,14 +12,9 @@ const periodButtons = Array.from(document.querySelectorAll(".period-picker butto
 const STATS_REFRESH_MS = 60000;
 const TOP_SPECIES_COLLAPSED_COUNT = 5;
 let showAllTopSpecies = false;
-let selectedDays = 30;
-
-const PERIOD_LABELS = new Map([
-  [1, "Seneste døgn"],
-  [7, "Seneste uge"],
-  [30, "Seneste måned"],
-  [0, "Al tid"],
-]);
+let selectedDays = 1;
+let selectedHour = null;
+let latestStatsData = null;
 
 function splitDisplayName(displayName) {
   const parts = displayName.split("/").map((part) => part.trim());
@@ -46,6 +41,13 @@ function formatNumber(value) {
   return new Intl.NumberFormat("da-DK").format(value || 0);
 }
 
+function formatPercent(value) {
+  return new Intl.NumberFormat("da-DK", {
+    maximumFractionDigits: 0,
+    style: "percent",
+  }).format(value || 0);
+}
+
 function formatHour(hour) {
   return `${String(hour).padStart(2, "0")}.00`;
 }
@@ -54,34 +56,55 @@ function formatHourNumber(hour) {
   return String(hour).padStart(2, "0");
 }
 
+function hourWindowText(hour) {
+  const nextHour = (hour + 1) % 24;
+  return `mellem kl. ${formatHourNumber(hour)} og ${formatHourNumber(nextHour)}`;
+}
+
 function peakHourText(hourlyCounts) {
   const maxCount = Math.max(...hourlyCounts, 0);
   if (maxCount === 0) {
     return "Ingen tydelig rytme";
   }
   const hour = hourlyCounts.indexOf(maxCount);
-  const nextHour = (hour + 1) % 24;
-  return `Flest hørt mellem kl. ${formatHourNumber(hour)} og ${formatHourNumber(nextHour)}`;
+  return `Oftest hørt ${hourWindowText(hour)}`;
 }
 
 function renderHourChart(hourlyCounts) {
   const maxCount = Math.max(...hourlyCounts, 1);
   hourChartEl.replaceChildren();
   hourlyCounts.forEach((count, hour) => {
-    const bar = document.createElement("div");
+    const bar = document.createElement("button");
     bar.className = "hour-bar";
+    bar.type = "button";
     bar.dataset.hour = String(hour);
+    bar.dataset.selected = String(selectedHour === hour);
+    bar.setAttribute("aria-pressed", String(selectedHour === hour));
+    bar.setAttribute("aria-label", `${formatHour(hour)}: ${formatNumber(count)} fund`);
     if ([6, 12, 18].includes(hour)) {
       bar.dataset.label = String(hour);
     }
     bar.title = `${formatHour(hour)}: ${formatNumber(count)} fund`;
     bar.style.setProperty("--height", `${(count / maxCount) * 100}%`);
+    bar.addEventListener("click", () => {
+      selectedHour = selectedHour === hour ? null : hour;
+      showAllTopSpecies = false;
+      loadStats();
+    });
     hourChartEl.append(bar);
   });
 }
 
 function renderTopSpecies(speciesList) {
   topSpeciesEl.replaceChildren();
+  if (speciesList.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "empty-state";
+    empty.textContent = "Ingen fugle hørt i det valgte tidsrum.";
+    topSpeciesEl.append(empty);
+    return;
+  }
+
   const visibleCount = showAllTopSpecies
     ? speciesList.length
     : TOP_SPECIES_COLLAPSED_COUNT;
@@ -116,7 +139,15 @@ function renderTopSpecies(speciesList) {
     } else {
       imageWrap.textContent = initials(species.display_name);
     }
-    row.querySelector(".top-row-name").textContent = primaryName;
+    const nameEl = row.querySelector(".top-row-name");
+    const confidenceEl = document.createElement("span");
+    confidenceEl.className = "top-row-confidence";
+    confidenceEl.textContent = ` (${formatPercent(species.best_confidence)})`;
+    if (species.best_confidence < 0.5) {
+      confidenceEl.classList.add("top-row-confidence-low");
+    }
+    nameEl.textContent = primaryName;
+    nameEl.append(confidenceEl);
     row.querySelector(".top-row-fill").style.width = `${(species.count / maxCount) * 100}%`;
     topSpeciesEl.append(row);
   });
@@ -135,26 +166,46 @@ function renderTopSpecies(speciesList) {
 }
 
 function renderStats(data) {
+  if (!data) {
+    return;
+  }
+  latestStatsData = data;
+  const speciesList = data.species;
+  const overview = data.overview;
+
   statsTitleEl.textContent = data.site_title || "Fuglene i haven";
   document.title = data.site_title || "Fuglestatistik";
-  totalDetectionsEl.textContent = formatNumber(data.overview.detection_count);
-  totalSpeciesEl.textContent = formatNumber(data.overview.species_count);
-  totalRecordingsEl.textContent = formatNumber(data.overview.recording_count);
-  peakHourEl.textContent = peakHourText(data.hourly_counts);
-  speciesWindowEl.hidden = true;
-  speciesWindowEl.textContent = "";
-  updatedAtEl.textContent = `Opdateret ${new Date(data.updated_at).toLocaleTimeString(
-    "da-DK",
-    { hour: "2-digit", minute: "2-digit" },
-  )}`;
+  totalDetectionsEl.textContent = formatNumber(overview.detection_count);
+  totalSpeciesEl.textContent = formatNumber(overview.species_count);
+  totalRecordingsEl.textContent = formatNumber(overview.recording_count);
+  peakHourEl.textContent = selectedHour === null
+    ? peakHourText(data.hourly_counts)
+    : `Filtreret ${hourWindowText(selectedHour)} · klik igen for at vise alle`;
+  speciesWindowEl.hidden = selectedHour === null;
+  speciesWindowEl.textContent = selectedHour === null
+    ? ""
+    : `Kun ${hourWindowText(selectedHour)}`;
+  if (updatedAtEl) {
+    updatedAtEl.textContent = `Opdateret ${new Date(data.updated_at).toLocaleTimeString(
+      "da-DK",
+      { hour: "2-digit", minute: "2-digit" },
+    )}`;
+  }
 
   renderHourChart(data.hourly_counts);
-  renderTopSpecies(data.species);
+  renderTopSpecies(speciesList);
 }
 
 async function loadStats() {
   try {
-    const response = await fetch(`/api/stats?days=${selectedDays}&limit=24`);
+    const params = new URLSearchParams({
+      days: String(selectedDays),
+      limit: "80",
+    });
+    if (selectedHour !== null) {
+      params.set("hour", String(selectedHour));
+    }
+    const response = await fetch(`/api/stats?${params.toString()}`);
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
@@ -168,6 +219,7 @@ async function loadStats() {
 periodButtons.forEach((button) => {
   button.addEventListener("click", () => {
     selectedDays = Number(button.dataset.days);
+    selectedHour = null;
     showAllTopSpecies = false;
     periodButtons.forEach((periodButton) => {
       periodButton.dataset.active = String(periodButton === button);

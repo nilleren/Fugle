@@ -35,6 +35,7 @@ class AudioConfig:
     """User-editable recording settings."""
 
     device: int | None
+    device_name: str | None
     duration_seconds: int
     sample_rate: int | None
     output_dir: Path
@@ -53,6 +54,7 @@ def load_config(path: Path) -> AudioConfig:
     if not path.exists():
         return AudioConfig(
             device=None,
+            device_name=None,
             duration_seconds=DEFAULT_DURATION_SECONDS,
             sample_rate=None,
             output_dir=RECORDINGS_DIR,
@@ -67,6 +69,7 @@ def load_config(path: Path) -> AudioConfig:
         raise SystemExit(f"{path} skal indeholde en [audio]-sektion.")
 
     device = audio_config.get("device")
+    device_name = audio_config.get("device_name")
     duration_seconds = audio_config.get("duration_seconds", DEFAULT_DURATION_SECONDS)
     sample_rate = audio_config.get("sample_rate")
     output_dir = audio_config.get("output_dir", str(RECORDINGS_DIR))
@@ -77,6 +80,8 @@ def load_config(path: Path) -> AudioConfig:
 
     if device is not None and not isinstance(device, int):
         raise SystemExit("audio.device skal vaere et heltal.")
+    if device_name is not None and not isinstance(device_name, str):
+        raise SystemExit("audio.device_name skal vaere tekst.")
     if not isinstance(duration_seconds, int) or duration_seconds <= 0:
         raise SystemExit("audio.duration_seconds skal vaere et heltal over 0.")
     if sample_rate is not None and (
@@ -90,6 +95,7 @@ def load_config(path: Path) -> AudioConfig:
 
     return AudioConfig(
         device=device,
+        device_name=clean_device_name(device_name) if device_name else None,
         duration_seconds=duration_seconds,
         sample_rate=sample_rate,
         output_dir=Path(output_dir),
@@ -124,6 +130,34 @@ def get_microphones() -> list[Microphone]:
         )
 
     return microphones
+
+
+def find_preferred_microphone(
+    microphones: list[Microphone],
+    configured_device: int | None,
+    configured_device_name: str | None = None,
+) -> Microphone | None:
+    """Find the configured microphone, with fallbacks for changed device numbers."""
+
+    if not microphones:
+        return None
+
+    if configured_device_name:
+        wanted_name = clean_device_name(configured_device_name).casefold()
+        for microphone in microphones:
+            if microphone.name.casefold() == wanted_name:
+                return microphone
+        for microphone in microphones:
+            available_name = microphone.name.casefold()
+            if wanted_name in available_name or available_name in wanted_name:
+                return microphone
+
+    if configured_device is not None:
+        for microphone in microphones:
+            if microphone.index == configured_device:
+                return microphone
+
+    return microphones[0]
 
 
 def print_microphones(microphones: list[Microphone]) -> None:
@@ -305,19 +339,26 @@ def main() -> None:
     if sample_rate is not None and sample_rate <= 0:
         raise SystemExit("--sample-rate skal vaere mindst 1 Hz.")
 
-    device = args.device if args.device is not None else config.device
-    if device is None:
-        microphone = choose_microphone(microphones)
-    else:
+    if args.device is not None:
         matching_microphones = [
-            microphone for microphone in microphones if microphone.index == device
+            microphone for microphone in microphones if microphone.index == args.device
         ]
         if not matching_microphones:
             raise SystemExit(
-                f"Mikrofonnummer {device} blev ikke fundet. "
+                f"Mikrofonnummer {args.device} blev ikke fundet. "
                 "Koer med --list for at se tilgaengelige mikrofoner."
             )
         microphone = matching_microphones[0]
+    elif config.device is None and config.device_name is None:
+        microphone = choose_microphone(microphones)
+    else:
+        microphone = find_preferred_microphone(
+            microphones,
+            config.device,
+            config.device_name,
+        )
+        if microphone is None:
+            raise SystemExit("Kan ikke optage, fordi ingen mikrofoner blev fundet.")
 
     sample_rate = sample_rate or microphone.default_samplerate
     output_path = args.output or build_output_path(config.output_dir)

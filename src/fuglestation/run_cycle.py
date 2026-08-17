@@ -20,6 +20,7 @@ from fuglestation.database import save_analysis
 from fuglestation.record_audio import (
     CONFIG_PATH,
     build_output_path as build_recording_path,
+    find_preferred_microphone,
     get_microphones,
     load_config,
     record_audio,
@@ -49,23 +50,32 @@ def find_configured_microphone(config_path: Path, device_override: int | None):
     if not microphones:
         raise SystemExit("Kan ikke starte cyklus, fordi ingen mikrofoner blev fundet.")
 
-    device = device_override if device_override is not None else audio_config.device
-    if device is None:
-        raise SystemExit(
-            "run_cycle kraever et mikrofonnummer. "
-            "Saet audio.device i config.toml eller brug --device."
+    if device_override is not None:
+        matching_microphones = [
+            microphone
+            for microphone in microphones
+            if microphone.index == device_override
+        ]
+        if not matching_microphones:
+            raise SystemExit(
+                f"Mikrofonnummer {device_override} blev ikke fundet. "
+                "Koer python -m fuglestation.record_audio --list for at se muligheder."
+            )
+        microphone = matching_microphones[0]
+    else:
+        microphone = find_preferred_microphone(
+            microphones,
+            audio_config.device,
+            audio_config.device_name,
         )
 
-    matching_microphones = [
-        microphone for microphone in microphones if microphone.index == device
-    ]
-    if not matching_microphones:
+    if microphone is None:
         raise SystemExit(
-            f"Mikrofonnummer {device} blev ikke fundet. "
+            "Den valgte mikrofon blev ikke fundet. "
             "Koer python -m fuglestation.record_audio --list for at se muligheder."
         )
 
-    return audio_config, matching_microphones[0]
+    return audio_config, microphone
 
 
 def parse_args() -> argparse.Namespace:
