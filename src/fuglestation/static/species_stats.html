@@ -4,9 +4,20 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Artsstatistik</title>
-    <link rel="stylesheet" href="/static/stats.css?v=20260726-species-filters" />
+    <link rel="icon" href="/static/favicon.ico?v=20260818-body" sizes="any" />
+    <link rel="icon" href="/static/favicon.png?v=20260818-body" type="image/png" />
+    <link rel="apple-touch-icon" href="/static/apple-touch-icon.png?v=20260818-body" />
+    <link rel="stylesheet" href="/static/stats.css?v=20260830-page-tools" />
   </head>
   <body>
+    <nav class="wall-tools" aria-label="Fuglestationen">
+      <a href="/">Fuglevæg</a>
+      <span aria-hidden="true">·</span>
+      <a href="/settings/">Indstillinger</a>
+      <span aria-hidden="true">·</span>
+      <a href="/stats">Statistik</a>
+    </nav>
+
     <main class="stats-page species-page">
       <header class="species-hero">
         <a class="back-link" href="/stats">Tilbage</a>
@@ -63,10 +74,6 @@
         <div id="species-year-chart" class="year-chart"></div>
       </section>
 
-      <footer class="stats-footer">
-        <a href="/stats">Statistik</a>
-        <a href="/">Vægvisning</a>
-      </footer>
     </main>
 
     <script src="/static/species_stats.js?v=20260726-species-filters"></script>

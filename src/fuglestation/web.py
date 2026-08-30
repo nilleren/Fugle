@@ -18,8 +18,10 @@ from pydantic import BaseModel
 from fuglestation.analyze_audio import DEFAULT_CONFIDENCE
 from fuglestation.audio_clips import DEFAULT_SPECIES_CLIPS_DIR
 from fuglestation.audio_clips import load_species_clip_index
+from fuglestation.audio_clips import save_species_clip_index
 from fuglestation.database import (
     DEFAULT_DATABASE_PATH,
+    delete_species_clip_detection,
     get_detection_overview,
     get_recent_detections,
     get_species_summary,
@@ -52,6 +54,7 @@ DEFAULT_WALL_SHOW_FOOTER = True
 DEFAULT_WALL_SHOW_SHADOWS = False
 DEFAULT_WALL_SIZE_MODE = "common"
 DEFAULT_WALL_MIN_CONFIDENCE = 0.5
+DEFAULT_WALL_EINK_BACKGROUND = "#FBF2D6"
 DEFAULT_SITE_TITLE = "Fuglene i haven"
 WALL_SIZE_MODES = {"equal", "common", "rare"}
 scheduler_process: subprocess.Popen | None = None
@@ -80,6 +83,7 @@ class RuntimeSettingsUpdate(BaseModel):
     wall_show_footer: bool
     wall_show_shadows: bool
     wall_size_mode: str
+    wall_eink_background: str = DEFAULT_WALL_EINK_BACKGROUND
 
 
 def load_database_path(path: Path) -> Path:
@@ -381,6 +385,10 @@ def load_wall_config(config: dict[str, object]) -> dict[str, int | float | bool 
         "min_confidence",
         DEFAULT_WALL_MIN_CONFIDENCE,
     )
+    eink_background = wall_config.get(
+        "eink_background",
+        DEFAULT_WALL_EINK_BACKGROUND,
+    )
     if not isinstance(max_species, int) or max_species < 1:
         max_species = DEFAULT_WALL_MAX_SPECIES
     if not isinstance(recent_minutes, int) or recent_minutes < 1:
@@ -397,6 +405,11 @@ def load_wall_config(config: dict[str, object]) -> dict[str, int | float | bool 
         size_mode = DEFAULT_WALL_SIZE_MODE
     if not isinstance(min_confidence, int | float) or not 0 <= min_confidence <= 1:
         min_confidence = DEFAULT_WALL_MIN_CONFIDENCE
+    if not isinstance(eink_background, str) or fullmatch(
+        r"#[0-9A-Fa-f]{6}",
+        eink_background,
+    ) is None:
+        eink_background = DEFAULT_WALL_EINK_BACKGROUND
 
     return {
         "max_species": max_species,
@@ -407,6 +420,7 @@ def load_wall_config(config: dict[str, object]) -> dict[str, int | float | bool 
         "show_footer": show_footer,
         "show_shadows": show_shadows,
         "size_mode": size_mode,
+        "eink_background": eink_background.upper(),
     }
 
 
@@ -498,6 +512,7 @@ def wall_payload(
         "show_footer": wall_config["show_footer"],
         "show_shadows": wall_config["show_shadows"],
         "size_mode": wall_config["size_mode"],
+        "eink_background": wall_config["eink_background"],
         "updated_at": now_iso(),
         "species": [species_summary_payload(summary) for summary in species_summary],
     }
@@ -583,6 +598,10 @@ def api_detections(
         limit,
         detection_min_confidence,
     )
+    overview = get_detection_overview(
+        database_path,
+        min_confidence=detection_min_confidence,
+    )
     species_summary = get_species_summary(
         database_path,
         10,
@@ -591,7 +610,8 @@ def api_detections(
 
     return {
         "database": str(database_path),
-        "count": len(detections),
+        "count": overview.detection_count,
+        "species_count": overview.species_count,
         "min_confidence": detection_min_confidence,
         "species_summary": [
             species_summary_payload(summary) for summary in species_summary
@@ -1159,6 +1179,82 @@ def api_audio_species_clip_file(filename: str) -> FileResponse:
     return FileResponse(clip_path, media_type="audio/wav")
 
 
+@app.delete("/api/audio/species-clips/{filename}")
+def api_delete_audio_species_clip(filename: str) -> dict[str, object]:
+    """Delete a species clip and the one detection it represents."""
+
+    if Path(filename).name != filename or not filename.lower().endswith(".wav"):
+        raise HTTPException(status_code=404, detail="Artsklippet blev ikke fundet.")
+
+    clips_dir = DEFAULT_SPECIES_CLIPS_DIR.resolve()
+    index = load_species_clip_index(clips_dir)
+    matches = [
+        (species_name, clip)
+        for species_name, clip in index.items()
+        if clip.get("filename") == filename
+    ]
+    if len(matches) != 1:
+        raise HTTPException(status_code=404, detail="Artsklippet blev ikke fundet.")
+
+    species_name, clip = matches[0]
+    clip_path = (clips_dir / filename).resolve()
+    if clip_path.parent != clips_dir:
+        raise HTTPException(status_code=404, detail="Artsklippet blev ikke fundet.")
+
+    staged_path = clips_dir / f".{filename}.deleting"
+    if staged_path.exists():
+        raise HTTPException(
+            status_code=409,
+            detail="En tidligere sletning af artsklippet er ikke afsluttet.",
+        )
+
+    original_index = dict(index)
+    file_staged = False
+    try:
+        if clip_path.exists():
+            clip_path.replace(staged_path)
+            file_staged = True
+        del index[species_name]
+        save_species_clip_index(clips_dir, index)
+        detection_id = delete_species_clip_detection(
+            database_path=load_database_path(CONFIG_PATH),
+            species_name=species_name,
+            source_recording=str(clip["source_recording"]),
+            confidence=float(clip["confidence"]),
+            clip_start_time=float(clip["start_time"]),
+            clip_end_time=float(clip["end_time"]),
+            detection_start_time=(
+                float(clip["detection_start_time"])
+                if "detection_start_time" in clip
+                else None
+            ),
+            detection_end_time=(
+                float(clip["detection_end_time"])
+                if "detection_end_time" in clip
+                else None
+            ),
+        )
+    except (KeyError, TypeError, ValueError, OSError, RuntimeError) as error:
+        save_species_clip_index(clips_dir, original_index)
+        if file_staged and staged_path.exists() and not clip_path.exists():
+            staged_path.replace(clip_path)
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+    if file_staged:
+        staged_path.unlink()
+
+    return {
+        "message": (
+            "Artsklip og detektion slettet."
+            if detection_id is not None
+            else "Artsklip slettet; detektionen var allerede fjernet."
+        ),
+        "filename": filename,
+        "species_name": species_name,
+        "detection_id": detection_id,
+    }
+
+
 @app.post("/api/audio/test-recording")
 def api_audio_test_recording() -> dict[str, object]:
     """Record a short WAV file with the configured microphone."""
@@ -1266,11 +1362,17 @@ def api_config_runtime_settings(update: RuntimeSettingsUpdate) -> dict[str, obje
             status_code=400,
             detail="Vægstørrelse skal være equal, common eller rare.",
         )
+    if fullmatch(r"#[0-9A-Fa-f]{6}", update.wall_eink_background) is None:
+        raise HTTPException(
+            status_code=400,
+            detail="E-ink-baggrund skal være en farve som #FBF2D6.",
+        )
 
     birdnet_min_confidence = round(update.birdnet_min_confidence, 3)
     wall_min_confidence = round(update.wall_min_confidence, 3)
     quiet_start = validate_time_value(update.quiet_start, "quiet_start")
     quiet_end = validate_time_value(update.quiet_end, "quiet_end")
+    wall_eink_background = update.wall_eink_background.upper()
 
     try:
         write_config_values(
@@ -1295,6 +1397,7 @@ def api_config_runtime_settings(update: RuntimeSettingsUpdate) -> dict[str, obje
                     "show_footer": update.wall_show_footer,
                     "show_shadows": update.wall_show_shadows,
                     "size_mode": update.wall_size_mode,
+                    "eink_background": wall_eink_background,
                 },
             },
         )
@@ -1317,6 +1420,7 @@ def api_config_runtime_settings(update: RuntimeSettingsUpdate) -> dict[str, obje
         "wall_show_footer": update.wall_show_footer,
         "wall_show_shadows": update.wall_show_shadows,
         "wall_size_mode": update.wall_size_mode,
+        "wall_eink_background": wall_eink_background,
     }
 
 

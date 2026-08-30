@@ -133,6 +133,77 @@ def split_species_name(species_name: str) -> tuple[str | None, str | None]:
     return scientific_name, common_name
 
 
+def delete_species_clip_detection(
+    database_path: Path,
+    species_name: str,
+    source_recording: str,
+    confidence: float,
+    clip_start_time: float,
+    clip_end_time: float,
+    detection_start_time: float | None = None,
+    detection_end_time: float | None = None,
+) -> int | None:
+    """Delete the one detection represented by a saved species clip."""
+
+    with connect(database_path) as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        rows = connection.execute(
+            """
+            SELECT
+                detections.id,
+                recordings.audio_path,
+                detections.start_time,
+                detections.end_time,
+                detections.confidence
+            FROM detections
+            JOIN recordings ON recordings.id = detections.recording_id
+            WHERE detections.species_name = ?
+            """,
+            (species_name,),
+        ).fetchall()
+
+        candidates = []
+        for row in rows:
+            recording_name = Path(str(row[1])).name
+            start_time = float(row[2])
+            end_time = float(row[3])
+            row_confidence = float(row[4])
+            has_detection_times = (
+                detection_start_time is not None and detection_end_time is not None
+            )
+            exact_detection_times = (
+                has_detection_times
+                and abs(start_time - detection_start_time) < 0.000001
+                and abs(end_time - detection_end_time) < 0.000001
+            )
+            within_saved_clip = (
+                not has_detection_times
+                and start_time >= clip_start_time - 0.000001
+                and end_time <= clip_end_time + 0.000001
+            )
+            if (
+                recording_name == source_recording
+                and abs(row_confidence - confidence) < 0.000001
+                and (exact_detection_times or within_saved_clip)
+            ):
+                candidates.append(int(row[0]))
+
+        if len(candidates) > 1:
+            raise RuntimeError(
+                "Artsklippet kunne ikke knyttes entydigt til én detektion "
+                f"(fandt {len(candidates)} match)."
+            )
+
+        if not candidates:
+            connection.commit()
+            return None
+
+        detection_id = candidates[0]
+        connection.execute("DELETE FROM detections WHERE id = ?", (detection_id,))
+        connection.commit()
+        return detection_id
+
+
 def save_analysis(
     database_path: Path,
     audio_path: Path,

@@ -4,9 +4,18 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Fuglene i haven</title>
-    <link rel="stylesheet" href="/static/wall.css?v=20260718-wall-confidence" />
+    <link rel="icon" href="/static/favicon.ico?v=20260818-body" sizes="any" />
+    <link rel="icon" href="/static/favicon.png?v=20260818-body" type="image/png" />
+    <link rel="apple-touch-icon" href="/static/apple-touch-icon.png?v=20260818-body" />
+    <link rel="stylesheet" href="/static/wall.css?v=20260818-wall-tools" />
   </head>
   <body>
+    <nav class="wall-tools" aria-label="Fuglestationen">
+      <a href="/settings/">Indstillinger</a>
+      <span aria-hidden="true">·</span>
+      <a href="/stats">Statistik</a>
+    </nav>
+
     <main class="wall">
       <header class="wall-header">
         <h1 id="wall-title">Fuglene i haven</h1>
@@ -19,11 +28,9 @@
       <footer class="wall-footer">
         <span id="wall-latest">Venter på BirdNET-data</span>
         <span id="wall-updated">Indlæser...</span>
-        <a href="/settings/" aria-label="Åbn indstillinger">Indstillinger</a>
-          <a href="/stats" aria-label="Åbn statistik">Statistik</a>
       </footer>
     </main>
 
-    <script src="/static/wall.js?v=20260726-second-variants"></script>
+    <script src="/static/wall.js?v=20260830-species-links"></script>
   </body>
 </html>

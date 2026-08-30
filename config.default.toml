@@ -2,22 +2,21 @@
 title = "Fuglene i haven"
 
 [audio]
-# Device 0 is Windows' default input device. Run with --list to find another.
+# Current USB microphone on the Raspberry Pi.
 device = 0
-device_name = ""
+device_name = "Samson Go Mic: USB Audio (hw:2,0)"
 duration_seconds = 10
-sample_rate = 44100
+sample_rate = 48000
 output_dir = "recordings"
-recordings_to_keep = 3
+recordings_to_keep = 5
 
 [birdnet]
-# Approximate center of Denmark. Use config.toml for a private fixed site.
 use_geo = true
-latitude = 56.0
-longitude = 10.0
+latitude = 55.64
+longitude = 12.48
 # Leave week empty to use the current ISO week automatically.
 week = 0
-min_confidence = 0.1
+min_confidence = 0.6
 geo_min_confidence = 0.05
 
 [database]
@@ -30,15 +29,16 @@ first_phase_interval_seconds = 30
 second_phase_seconds = 600
 second_phase_interval_seconds = 60
 steady_interval_seconds = 900
-quiet_start = "22:00"
-quiet_end = "05:00"
+quiet_start = "00:00"
+quiet_end = "03:00"
 
 [wall]
 max_species = 20
 recent_minutes = 1400
-min_confidence = 0.5
+min_confidence = 0.6
 show_names = true
 size_mode = "common"
 show_footer = false
 show_latin_names = false
 show_shadows = true
+eink_background = "#FEFCDD"

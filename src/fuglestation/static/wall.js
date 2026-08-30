@@ -530,13 +530,15 @@ function renderBirdCard(
   showLatinNames = true,
 ) {
   const seed = speciesSeed(species.species_name);
-  const card = document.createElement("article");
+  const card = document.createElement("a");
   const countWeight = maxCount > 0 ? species.count / maxCount : 0;
   const size = Math.round(124 + countWeight * 88);
   const rotate = ((seed % 9) - 4) * 0.7;
   const hue = (seed * 17) % 360;
 
   card.className = "bird-card";
+  card.href = `${["", "stats", "species"].join("/")}?species_name=${encodeURIComponent(species.species_name)}`;
+  card.title = `Vis statistik for ${species.display_name}`;
   card.style.setProperty("--card-size", `${size}px`);
   card.style.setProperty("--rotation", `${rotate}deg`);
   card.style.setProperty("--hue", String(hue));

@@ -11,7 +11,9 @@ from textwrap import shorten
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 
-BACKGROUND = (246, 225, 176)
+# A light warm ivory gives the six-color Spectra panel a mostly white base
+# with a restrained yellow dither, keeping dark and colored birds distinct.
+BACKGROUND = (251, 242, 214)
 TEXT = (43, 33, 23)
 MUTED = (88, 70, 51)
 LINE = (178, 145, 93)
@@ -28,6 +30,20 @@ LANDSCAPE_SIZE = (1600, 1200)
 GRID_STRIDE = 4
 COLLAGE_PAD_CELLS = 4
 LABEL_TOP_GAP_CELLS = 2
+
+
+def parse_hex_color(
+    value: object,
+    fallback: tuple[int, int, int],
+) -> tuple[int, int, int]:
+    """Convert a #RRGGBB setting to an RGB tuple, falling back safely."""
+
+    if not isinstance(value, str) or len(value) != 7 or not value.startswith("#"):
+        return fallback
+    try:
+        return tuple(int(value[index : index + 2], 16) for index in (1, 3, 5))
+    except ValueError:
+        return fallback
 
 
 def split_display_name(display_name: str) -> tuple[str, str]:
@@ -719,7 +735,8 @@ def render_eink_wall_image(
         width, height = LANDSCAPE_SIZE if landscape else PORTRAIT_SIZE
     width = max(320, min(int(width), 2400))
     height = max(240, min(int(height), 2400))
-    image = Image.new("RGB", (width, height), BACKGROUND)
+    background = parse_hex_color(wall_data.get("eink_background"), BACKGROUND)
+    image = Image.new("RGB", (width, height), background)
     draw = ImageDraw.Draw(image)
 
     margin = max(16, round(min(width, height) * 0.045))

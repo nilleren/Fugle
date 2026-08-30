@@ -21,6 +21,37 @@ body {
   font-family: var(--display-font);
 }
 
+.wall-tools {
+  align-items: center;
+  display: flex;
+  font-family: system-ui, sans-serif;
+  font-size: 11px;
+  gap: 7px;
+  letter-spacing: 0.04em;
+  opacity: 0.42;
+  position: fixed;
+  right: clamp(14px, 2vw, 28px);
+  top: clamp(12px, 1.7vw, 24px);
+  transition: opacity 160ms ease;
+  z-index: 10;
+}
+
+.wall-tools:hover,
+.wall-tools:focus-within {
+  opacity: 0.9;
+}
+
+.wall-tools a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.wall-tools a:hover,
+.wall-tools a:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .wall {
   display: grid;
   grid-template-rows: auto 1fr auto;
@@ -100,6 +131,7 @@ h1 {
   padding: 0;
   transform: rotate(var(--rotation));
   width: min(var(--card-size), 28vw);
+  text-decoration: none;
 }
 
 .bird-collage[data-layout="packed"] .bird-card {

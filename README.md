@@ -113,6 +113,7 @@ size_mode = "common"
 show_footer = false
 show_latin_names = false
 show_shadows = true
+eink_background = "#FBF2D6"
 ```
 
 Projektets default-konfiguration ligger i:
@@ -124,6 +125,8 @@ config.default.toml
 Dashboardet har en knap til at nulstille `config.toml` til denne default.
 `site.title` styrer overskriften paa vaegvisning og statistik, og kan rettes
 fra dashboardets indstillinger.
+`wall.eink_background` styrer baggrundsfarven i det genererede E-ink-billede
+og kan vaelges med farvevaelgeren under indstillinger.
 
 `device = 0` betyder Windows' standard-input. Hvis du vil bruge en bestemt
 USB-mikrofon, saa find dens nummer med `--list` og ret `device`.

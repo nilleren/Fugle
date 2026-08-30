@@ -1,4 +1,5 @@
 const statusEl = document.querySelector("#status");
+const settingsSiteTitleEl = document.querySelector("#settings-site-title");
 const countEl = document.querySelector("#detection-count");
 const speciesCountEl = document.querySelector("#species-count");
 const databaseEl = document.querySelector("#database-path");
@@ -33,6 +34,9 @@ const recordingsListEl = document.querySelector("#recordings-list");
 const refreshRecordingsButton = document.querySelector("#refresh-recordings-button");
 const speciesClipsStatusEl = document.querySelector("#species-clips-status");
 const speciesClipsListEl = document.querySelector("#species-clips-list");
+const showAllSpeciesClipsButton = document.querySelector(
+  "#show-all-species-clips-button",
+);
 const refreshSpeciesClipsButton = document.querySelector(
   "#refresh-species-clips-button",
 );
@@ -59,6 +63,7 @@ const wallShowLatinNamesSettingEl = document.querySelector(
 const wallShowFooterSettingEl = document.querySelector("#wall-show-footer-setting");
 const wallShowShadowsSettingEl = document.querySelector("#wall-show-shadows-setting");
 const wallSizeModeSettingEl = document.querySelector("#wall-size-mode-setting");
+const einkBackgroundSettingEl = document.querySelector("#eink-background-setting");
 const saveRuntimeSettingsButton = document.querySelector(
   "#save-runtime-settings-button",
 );
@@ -68,10 +73,23 @@ const resetDefaultSettingsButton = document.querySelector(
 const runtimeSettingsStatusEl = document.querySelector("#runtime-settings-status");
 
 const REFRESH_INTERVAL_MS = 10000;
-const COLLAPSED_DETECTION_LIMIT = 25;
+const COLLAPSED_DETECTION_LIMIT = 5;
 const EXPANDED_DETECTION_LIMIT = 10000;
+const COLLAPSED_SPECIES_CLIPS_LIMIT = 5;
 let refreshTimer = null;
 let showAllDetections = false;
+let showAllSpeciesClips = false;
+let loadedSpeciesClips = [];
+
+function updateSettingsPageTitle(siteTitle) {
+  const title = String(siteTitle || "").trim();
+  if (!title) {
+    return;
+  }
+
+  document.title = title;
+  settingsSiteTitleEl.textContent = title;
+}
 
 function danishBirdName(displayName) {
   return String(displayName || "").split("/")[0].trim();
@@ -285,6 +303,11 @@ function renderRecordings(recordings) {
 
 function renderSpeciesClips(clips) {
   speciesClipsListEl.replaceChildren();
+  const hasMoreClips = clips.length > COLLAPSED_SPECIES_CLIPS_LIMIT;
+  const visibleClips = showAllSpeciesClips
+    ? clips
+    : clips.slice(0, COLLAPSED_SPECIES_CLIPS_LIMIT);
+  showAllSpeciesClipsButton.hidden = !hasMoreClips || showAllSpeciesClips;
 
   if (clips.length === 0) {
     const empty = document.createElement("p");
@@ -294,7 +317,7 @@ function renderSpeciesClips(clips) {
     return;
   }
 
-  for (const clip of clips) {
+  for (const clip of visibleClips) {
     const item = document.createElement("article");
     item.className = "recording-item";
 
@@ -313,8 +336,15 @@ function renderSpeciesClips(clips) {
     audio.preload = "none";
     audio.src = clip.url;
 
+    const deleteButton = document.createElement("button");
+    deleteButton.type = "button";
+    deleteButton.className = "secondary delete-species-clip-button";
+    deleteButton.dataset.filename = clip.filename;
+    deleteButton.dataset.displayName = danishBirdName(clip.display_name);
+    deleteButton.textContent = "Slet";
+
     header.append(name, meta);
-    item.append(header, audio);
+    item.append(header, audio, deleteButton);
     speciesClipsListEl.append(item);
   }
 }
@@ -341,11 +371,10 @@ async function loadDetections() {
       ? data.detections
       : data.detections.slice(0, COLLAPSED_DETECTION_LIMIT);
 
-    countEl.textContent = showAllDetections
-      ? String(data.count)
-      : String(visibleDetections.length);
+    countEl.textContent = String(data.count);
     databaseEl.textContent = data.database;
     renderSpeciesSummary(data.species_summary);
+    speciesCountEl.textContent = String(data.species_count);
     renderRows(visibleDetections);
     showAllDetectionsButton.hidden = !hasMoreDetections;
     emptyEl.hidden = data.detections.length > 0;
@@ -395,6 +424,7 @@ async function loadConfig() {
     const config = await response.json();
 
     siteTitleSettingEl.value = config.site.title;
+    updateSettingsPageTitle(config.site.title);
     configPathEl.textContent = config.config_path;
     configDeviceEl.textContent = config.audio.device_name
       ? `Device ${config.audio.device} · ${config.audio.device_name}`
@@ -429,6 +459,7 @@ async function loadConfig() {
     wallShowFooterSettingEl.checked = config.wall.show_footer;
     wallShowShadowsSettingEl.checked = config.wall.show_shadows;
     wallSizeModeSettingEl.value = config.wall.size_mode;
+    einkBackgroundSettingEl.value = config.wall.eink_background;
     configDatabaseEl.textContent = config.database.path;
     loadRecordings();
   } catch (error) {
@@ -494,13 +525,54 @@ async function loadSpeciesClips() {
     }
 
     speciesClipsStatusEl.textContent = `${data.count} art(er) med klip`;
-    renderSpeciesClips(data.clips);
+    loadedSpeciesClips = data.clips;
+    showAllSpeciesClips = false;
+    renderSpeciesClips(loadedSpeciesClips);
   } catch (error) {
     speciesClipsStatusEl.classList.add("error");
     speciesClipsStatusEl.textContent = `Kunne ikke hente artsklip: ${error.message}`;
+    loadedSpeciesClips = [];
+    showAllSpeciesClipsButton.hidden = true;
     speciesClipsListEl.replaceChildren();
   } finally {
     refreshSpeciesClipsButton.disabled = false;
+  }
+}
+
+async function deleteSpeciesClip(filename, displayName) {
+  const confirmed = window.confirm(
+    `Vil du slette artsklippet for ${displayName} og den tilhørende detektion?`,
+  );
+  if (!confirmed) {
+    return;
+  }
+
+  const button = [...document.querySelectorAll(".delete-species-clip-button")]
+    .find((candidate) => candidate.dataset.filename === filename);
+  if (button) {
+    button.disabled = true;
+  }
+  speciesClipsStatusEl.classList.remove("error");
+  speciesClipsStatusEl.textContent = `Sletter ${displayName}...`;
+
+  try {
+    const response = await fetch(
+      `/api/audio/species-clips/${encodeURIComponent(filename)}`,
+      { method: "DELETE" },
+    );
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.detail || `HTTP ${response.status}`);
+    }
+    await loadSpeciesClips();
+    showAllDetections = false;
+    await loadDetections();
+  } catch (error) {
+    speciesClipsStatusEl.classList.add("error");
+    speciesClipsStatusEl.textContent = `Kunne ikke slette artsklip: ${error.message}`;
+    if (button) {
+      button.disabled = false;
+    }
   }
 }
 
@@ -555,6 +627,7 @@ async function saveRuntimeSettings(event) {
     const wallShowFooter = wallShowFooterSettingEl.checked;
     const wallShowShadows = wallShowShadowsSettingEl.checked;
     const wallSizeMode = wallSizeModeSettingEl.value;
+    const wallEinkBackground = einkBackgroundSettingEl.value;
     const response = await fetch("/api/config/runtime-settings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -573,6 +646,7 @@ async function saveRuntimeSettings(event) {
         wall_show_footer: wallShowFooter,
         wall_show_shadows: wallShowShadows,
         wall_size_mode: wallSizeMode,
+        wall_eink_background: wallEinkBackground,
       }),
     });
     const result = await response.json();
@@ -596,7 +670,7 @@ async function saveRuntimeSettings(event) {
       result.wall_show_shadows ? "til" : "fra"
     }, ${formatWallSizeMode(
       result.wall_size_mode,
-    )}.`;
+    )}, E-ink-baggrund ${result.wall_eink_background}.`;
     await loadConfig();
   } catch (error) {
     runtimeSettingsStatusEl.classList.add("error");
@@ -714,6 +788,17 @@ stopSchedulerButton.addEventListener("click", () => controlScheduler("stop"));
 testRecordingButton.addEventListener("click", testRecording);
 refreshRecordingsButton.addEventListener("click", loadRecordings);
 refreshSpeciesClipsButton.addEventListener("click", loadSpeciesClips);
+showAllSpeciesClipsButton.addEventListener("click", () => {
+  showAllSpeciesClips = true;
+  renderSpeciesClips(loadedSpeciesClips);
+});
+speciesClipsListEl.addEventListener("click", (event) => {
+  const button = event.target.closest(".delete-species-clip-button");
+  if (!button) {
+    return;
+  }
+  deleteSpeciesClip(button.dataset.filename, button.dataset.displayName);
+});
 runtimeSettingsForm.addEventListener("submit", saveRuntimeSettings);
 resetDefaultSettingsButton.addEventListener("click", resetDefaultSettings);
 audioDevicesListEl.addEventListener("click", (event) => {

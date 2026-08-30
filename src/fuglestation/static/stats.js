@@ -114,7 +114,11 @@ function renderTopSpecies(speciesList) {
     const { primaryName } = splitDisplayName(species.display_name);
     const row = document.createElement("a");
     row.className = "top-row";
-    row.href = `/stats/species?species_name=${encodeURIComponent(species.species_name)}`;
+    const speciesStatsPath = window.location.pathname.replace(
+      /\/stats\/?$/,
+      ["", "stats", "species"].join("/"),
+    );
+    row.href = `${speciesStatsPath}?species_name=${encodeURIComponent(species.species_name)}`;
     row.innerHTML = `
       <div class="top-row-main">
         <div class="top-row-image"></div>
