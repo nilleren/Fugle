@@ -537,7 +537,9 @@ function renderBirdCard(
   const hue = (seed * 17) % 360;
 
   card.className = "bird-card";
-  card.href = `${["", "stats", "species"].join("/")}?species_name=${encodeURIComponent(species.species_name)}`;
+  const appBasePath = window.location.pathname.replace(/\/$/, "");
+  const speciesStatsPath = ["", "stats", "species"].join("/");
+  card.href = `${appBasePath}${speciesStatsPath}?species_name=${encodeURIComponent(species.species_name)}`;
   card.title = `Vis statistik for ${species.display_name}`;
   card.style.setProperty("--card-size", `${size}px`);
   card.style.setProperty("--rotation", `${rotate}deg`);
