@@ -1,16 +1,19 @@
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 import tomllib
 from datetime import datetime, timedelta
+from functools import lru_cache
+from hashlib import sha256
 from pathlib import Path
 from random import choice
 from re import fullmatch
 from re import sub
 from shutil import copyfile
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, Header, HTTPException, Query
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -162,14 +165,22 @@ def find_bird_image_candidates(species_name: str) -> list[Path]:
     ]
 
 
-def find_bird_image(species_name: str) -> dict[str, str] | None:
-    """Return one local bird image, choosing randomly between variants."""
+def find_bird_image(
+    species_name: str,
+    *,
+    stable: bool = False,
+) -> dict[str, str] | None:
+    """Return one local bird image, optionally choosing a stable variant."""
 
     candidates = find_bird_image_candidates(species_name)
     if not candidates:
         return None
 
-    image_path = choice(candidates)
+    if stable:
+        digest = sha256(species_name.encode("utf-8")).digest()
+        image_path = candidates[int.from_bytes(digest[:8], "big") % len(candidates)]
+    else:
+        image_path = choice(candidates)
     image_version = int(image_path.stat().st_mtime)
     return {
         "filename": image_path.name,
@@ -216,10 +227,14 @@ def find_bird_image_url(species_name: str) -> str | None:
     return image["url"]
 
 
-def species_summary_payload(summary: object) -> dict[str, object]:
+def species_summary_payload(
+    summary: object,
+    *,
+    stable_image: bool = False,
+) -> dict[str, object]:
     """Return a species summary payload with a chosen local image variant."""
 
-    image = find_bird_image(summary.species_name)
+    image = find_bird_image(summary.species_name, stable=stable_image)
     still_image = find_still_bird_image(summary.species_name)
     image_variants = find_bird_image_variants(summary.species_name)
     image_filename = (
@@ -465,6 +480,8 @@ def wall_payload(
     limit: int | None = None,
     min_confidence: float | None = None,
     recent_minutes: int | None = None,
+    *,
+    stable_images: bool = False,
 ) -> dict[str, object]:
     """Return species data shaped for wall-like displays."""
 
@@ -514,7 +531,10 @@ def wall_payload(
         "size_mode": wall_config["size_mode"],
         "eink_background": wall_config["eink_background"],
         "updated_at": now_iso(),
-        "species": [species_summary_payload(summary) for summary in species_summary],
+        "species": [
+            species_summary_payload(summary, stable_image=stable_images)
+            for summary in species_summary
+        ],
     }
 
 
@@ -856,6 +876,38 @@ def api_wall(
     return wall_payload(limit, min_confidence, recent_minutes)
 
 
+@lru_cache(maxsize=32)
+def render_cached_eink_image(
+    payload_json: str,
+    output_format: str,
+    landscape: bool,
+    width: int | None,
+    height: int | None,
+    use_spectra_palette: bool,
+) -> bytes:
+    """Render an eInk image once for each distinct visible wall state."""
+
+    payload = json.loads(payload_json)
+    return render_eink_wall_image(
+        payload,
+        BIRD_ASSETS_DIR,
+        width,
+        height,
+        landscape=landscape,
+        output_format=output_format,
+        use_spectra_palette=use_spectra_palette,
+    )
+
+
+def etag_matches(if_none_match: str | None, etag: str) -> bool:
+    """Return whether an If-None-Match header accepts the current entity tag."""
+
+    if not if_none_match:
+        return False
+    candidates = {value.strip() for value in if_none_match.split(",")}
+    return "*" in candidates or etag in candidates or f"W/{etag}" in candidates
+
+
 def eink_response(
     output_format: str,
     landscape: bool,
@@ -865,6 +917,7 @@ def eink_response(
     min_confidence: float | None,
     recent_minutes: int | None,
     palette: str,
+    if_none_match: str | None = None,
 ) -> Response:
     """Return the current wall view as an eInk-friendly image."""
 
@@ -876,26 +929,40 @@ def eink_response(
     use_spectra_palette = palette == "spectra" or (
         palette == "auto" and output_format == "PNG"
     )
-    payload = wall_payload(limit, min_confidence, recent_minutes)
-    image = render_eink_wall_image(
+    payload = wall_payload(
+        limit,
+        min_confidence,
+        recent_minutes,
+        stable_images=True,
+    )
+    # The request timestamp is useful to the browser API, but it is not visible in
+    # the eInk image and must not invalidate an otherwise unchanged render.
+    payload.pop("updated_at", None)
+    payload_json = json.dumps(
         payload,
-        BIRD_ASSETS_DIR,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    image = render_cached_eink_image(
+        payload_json,
+        output_format,
+        landscape,
         width,
         height,
-        landscape=landscape,
-        output_format=output_format,
-        use_spectra_palette=use_spectra_palette,
+        use_spectra_palette,
     )
+    etag = f'"{sha256(image).hexdigest()}"'
     media_type = "image/jpeg" if output_format == "JPEG" else "image/png"
     extension = "jpg" if output_format == "JPEG" else "png"
-    return Response(
-        content=image,
-        media_type=media_type,
-        headers={
-            "Cache-Control": "no-cache, max-age=0",
-            "Content-Disposition": f'inline; filename="fuglestation-eink.{extension}"',
-        },
-    )
+    headers = {
+        "Cache-Control": "no-cache, max-age=0",
+        "Content-Disposition": f'inline; filename="fuglestation-eink.{extension}"',
+        "ETag": etag,
+    }
+    if etag_matches(if_none_match, etag):
+        return Response(status_code=304, headers=headers)
+    return Response(content=image, media_type=media_type, headers=headers)
 
 
 @app.get("/eink.png")
@@ -908,6 +975,7 @@ def eink_png(
     min_confidence: float | None = Query(default=None, ge=0.0, le=1.0),
     recent_minutes: int | None = Query(default=None, ge=1, le=10080),
     palette: str = Query(default="auto"),
+    if_none_match: str | None = Header(default=None, alias="If-None-Match"),
 ) -> Response:
     """Return the current wall view as a PNG for an eInk controller."""
 
@@ -920,6 +988,7 @@ def eink_png(
         min_confidence,
         recent_minutes,
         palette,
+        if_none_match,
     )
 
 
@@ -933,6 +1002,7 @@ def eink_jpg(
     min_confidence: float | None = Query(default=None, ge=0.0, le=1.0),
     recent_minutes: int | None = Query(default=None, ge=1, le=10080),
     palette: str = Query(default="auto"),
+    if_none_match: str | None = Header(default=None, alias="If-None-Match"),
 ) -> Response:
     """Return the current wall view as a JPEG for an eInk controller."""
 
@@ -945,6 +1015,7 @@ def eink_jpg(
         min_confidence,
         recent_minutes,
         palette,
+        if_none_match,
     )
 
 

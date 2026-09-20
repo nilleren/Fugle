@@ -360,6 +360,11 @@ http://127.0.0.1:8000/eink.png
 http://127.0.0.1:8000/eink.jpg
 ```
 
+eInk-endpointet giver samme billedfil og samme `ETag`, saa laenge de viste
+fugle og indstillinger er uaendrede. En controller, der genvaliderer URL'en,
+faar derfor `304 Not Modified` og behoever ikke opdatere panelet, naar der ikke
+er nyt.
+
 Som i flyspotting-projektet bruger eInk-visningen som standard native
 portraetformat `1200x1600`. Brug `landscape=true` til det roterede format
 `1600x1200`:
