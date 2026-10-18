@@ -113,6 +113,7 @@ size_mode = "common"
 show_footer = false
 show_latin_names = false
 show_shadows = true
+eink_background = "#FBF2D6"
 ```
 
 Projektets default-konfiguration ligger i:
@@ -124,6 +125,11 @@ config.default.toml
 Dashboardet har en knap til at nulstille `config.toml` til denne default.
 `site.title` styrer overskriften paa vaegvisning og statistik, og kan rettes
 fra dashboardets indstillinger.
+`wall.eink_background` styrer baggrundsfarven i det genererede E-ink-billede
+og kan vaelges med farvevaelgeren under indstillinger.
+Hvis `site.display_mode` er `terrace`, bruger `/eink.jpg` og `/eink.png` den
+samme terrassebaggrund, fugleplaceringer og forgrund som browservisningen.
+De oevrige visninger bruger fortsat den simple E-ink-collage.
 
 `device = 0` betyder Windows' standard-input. Hvis du vil bruge en bestemt
 USB-mikrofon, saa find dens nummer med `--list` og ret `device`.
@@ -317,6 +323,18 @@ Aabn mobilstatistikken:
 http://127.0.0.1:8000/stats
 ```
 
+Aabn terrassevisningen:
+
+```text
+http://127.0.0.1:8000/terrasse
+```
+
+Terrassevisningen bruger de samme arter, filtre og tidsvinduer som
+vaegvisningen. Placeringerne ligger i
+`src/fuglestation/static/terrace-placements.json`. Tilfoej `?debug=1` for at
+vise koordinatgitteret, flytte fugle med mus, touch eller piletaster og kopiere
+den opdaterede konfiguration.
+
 Websiden viser de seneste detektioner fra SQLite. API'et kan ogsaa kaldes
 direkte:
 
@@ -348,6 +366,47 @@ Vaegvisningen bruger et kompakt API:
 
 ```text
 http://127.0.0.1:8000/api/wall
+```
+
+eInk-visningen kan hentes som PNG eller JPG:
+
+```text
+http://127.0.0.1:8000/eink.png
+http://127.0.0.1:8000/eink.jpg
+```
+
+eInk-endpointet giver samme billedfil og samme `ETag`, saa laenge de viste
+fugle og indstillinger er uaendrede. En controller, der genvaliderer URL'en,
+faar derfor `304 Not Modified` og behoever ikke opdatere panelet, naar der ikke
+er nyt.
+
+Som i flyspotting-projektet bruger eInk-visningen som standard native
+portraetformat `1200x1600`. Brug `landscape=true` til det roterede format
+`1600x1200`:
+
+```text
+http://127.0.0.1:8000/eink.jpg?landscape=true
+```
+
+Til Seeed Studio 13,3" Spectra 6 / EE02 er JPG-endpointet standardvalget.
+Det sendes i fuld RGB med hoej JPEG-kvalitet, saa controlleren faar et rent
+udgangspunkt. Hvis billedet skal forkvantiseres til de seks Spectra-farver
+sort, hvid, gul, roed, groen og blaa, kan `palette=spectra` tilfoejes:
+
+```text
+http://127.0.0.1:8000/eink.jpg?landscape=true&palette=spectra
+```
+
+PNG bruger som standard Spectra-paletten:
+
+```text
+http://127.0.0.1:8000/eink.png?landscape=true
+```
+
+Stoerrelsen kan ogsaa tilpasses skaermen med `width` og `height`:
+
+```text
+http://127.0.0.1:8000/eink.jpg?width=800&height=480
 ```
 
 Mobilstatistikken bruger et separat API:
@@ -618,6 +677,23 @@ Start/stop kan ogsaa kaldes som API:
 POST http://127.0.0.1:8000/api/scheduler/start
 POST http://127.0.0.1:8000/api/scheduler/stop
 ```
+
+## Kreditering
+
+Projektet er inspireret af Avian Visitors:
+
+```text
+https://theodore.net/projects/AvianVisitors/
+```
+
+Fuglelydsgenkendelsen bygger paa BirdNET / BirdNET Analyzer.
+
+Artsdata og danske artsnavne hentes fra eBird.
+
+Fuglebilleder kan genereres med OpenAI, og udviklingen er lavet med hjaelp fra
+Codex.
+
+Baggrundsfjernelse af fuglebilleder bruger rembg/BiRefNet.
 
 ## Nuvaerende fase
 

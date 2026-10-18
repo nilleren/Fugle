@@ -4,9 +4,20 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Artsstatistik</title>
-    <link rel="stylesheet" href="/static/stats.css?v=20260715-species-stats" />
+    <link rel="icon" href="/static/favicon.ico?v=20260818-body" sizes="any" />
+    <link rel="icon" href="/static/favicon.png?v=20260818-body" type="image/png" />
+    <link rel="apple-touch-icon" href="/static/apple-touch-icon.png?v=20260818-body" />
+    <link rel="stylesheet" href="/static/stats.css?v=20260830-page-tools" />
   </head>
   <body>
+    <nav class="wall-tools" aria-label="Fuglestationen">
+      <a href="/">Fuglevæg</a>
+      <span aria-hidden="true">·</span>
+      <a href="/settings/">Indstillinger</a>
+      <span aria-hidden="true">·</span>
+      <a href="/stats">Statistik</a>
+    </nav>
+
     <main class="stats-page species-page">
       <header class="species-hero">
         <a class="back-link" href="/stats">Tilbage</a>
@@ -30,20 +41,26 @@
         </div>
       </section>
 
-      <section class="species-timeline" aria-label="Første og seneste optagelse">
+      <section class="species-timeline" aria-label="Først og senest hørt">
         <div>
-          <span>Første optagelse</span>
-          <strong id="species-first">-</strong>
+          <div class="species-latest-line">
+            <strong id="species-latest">-</strong>
+            <button id="species-listen-button" class="species-listen-button" type="button" hidden>Lyt</button>
+          </div>
+          <audio id="species-latest-audio" class="species-latest-audio-player" controls hidden></audio>
         </div>
-        <div>
-          <span>Seneste optagelse</span>
-          <strong id="species-latest">-</strong>
+        <div class="species-first-block">
+          <div class="species-first-line">
+            <strong id="species-first">-</strong>
+            <button id="species-history-toggle" class="species-history-toggle" type="button" aria-expanded="false" hidden>Vis historik</button>
+          </div>
+          <ol id="species-history-list" class="species-history-list" hidden></ol>
         </div>
       </section>
 
       <section class="panel" aria-label="Fund hen over døgnets timer">
         <div class="section-heading">
-          <h2>Døgnets timer</h2>
+          <h2>Tid på døgnet</h2>
           <span id="species-peak-hour">-</span>
         </div>
         <div id="species-hour-chart" class="hour-chart"></div>
@@ -51,19 +68,14 @@
 
       <section class="panel" aria-label="Fund hen over året">
         <div class="section-heading">
-          <h2>Året</h2>
+          <h2>Tid på året</h2>
           <span id="species-peak-month">-</span>
         </div>
         <div id="species-year-chart" class="year-chart"></div>
       </section>
 
-      <footer class="stats-footer">
-        <a href="/stats">Statistik</a>
-        <a href="/">Vægvisning</a>
-        <span id="updated-at">-</span>
-      </footer>
     </main>
 
-    <script src="/static/species_stats.js?v=20260717-site-title"></script>
+    <script src="/static/species_stats.js?v=20260726-species-filters"></script>
   </body>
 </html>

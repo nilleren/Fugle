@@ -8,7 +8,7 @@ const WALL_REFRESH_MS = 30000;
 const DAILY_RELOAD_HOUR = 3;
 const FREQUENCY_CHANGE_RATIO = 0.18;
 const FREQUENCY_CHANGE_ABSOLUTE = 2;
-const MASK_URL = "/assets/birds/masks.json?v=20260715-blackbird2-cutout";
+const MASK_URL = "/assets/birds/masks.json?v=20260726-second-variants";
 const GRID_STRIDE = 4;
 const COLLAGE_PAD_CELLS = 4;
 const LABEL_TOP_GAP_CELLS = 2;
@@ -530,13 +530,17 @@ function renderBirdCard(
   showLatinNames = true,
 ) {
   const seed = speciesSeed(species.species_name);
-  const card = document.createElement("article");
+  const card = document.createElement("a");
   const countWeight = maxCount > 0 ? species.count / maxCount : 0;
   const size = Math.round(124 + countWeight * 88);
   const rotate = ((seed % 9) - 4) * 0.7;
   const hue = (seed * 17) % 360;
 
   card.className = "bird-card";
+  const appBasePath = window.location.pathname.replace(/\/$/, "");
+  const speciesStatsPath = ["", "stats", "species"].join("/");
+  card.href = `${appBasePath}${speciesStatsPath}?species_name=${encodeURIComponent(species.species_name)}`;
+  card.title = `Vis statistik for ${species.display_name}`;
   card.style.setProperty("--card-size", `${size}px`);
   card.style.setProperty("--rotation", `${rotate}deg`);
   card.style.setProperty("--hue", String(hue));

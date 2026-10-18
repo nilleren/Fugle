@@ -1,0 +1,96 @@
+{
+  "coordinateSystem": {
+    "width": 880,
+    "height": 938,
+    "units": "normalized"
+  },
+  "defaults": {
+    "anchor": { "x": 0.5, "y": 0.82 },
+    "size": 0.14,
+    "rotation": 0,
+    "zIndex": 20,
+    "placementType": "perched",
+    "imageVariant": "still"
+  },
+  "labels": {
+    "Parus major_Great Tit": { "yOffset": 0.025 },
+    "Turdus iliacus_Redwing": { "yOffset": 0.025 }
+  },
+  "species": {
+    "Erithacus rubecula_European Robin": {
+      "x": 0.505,
+      "y": 0.548,
+      "size": 0.165,
+      "anchor": { "x": 0.51, "y": 0.91 },
+      "rotation": 1,
+      "zIndex": 28,
+      "placementType": "rim",
+      "imageVariant": "still",
+      "label": { "x": 0.51, "y": 0.395 },
+      "alternatives": [
+        { "x": 0.205, "y": 0.568, "rotation": -2 },
+        { "x": 0.39, "y": 0.535, "rotation": 2 }
+      ]
+    },
+    "Cyanistes caeruleus_Eurasian Blue Tit": {
+      "x": 0.31,
+      "y": 0.315,
+      "size": 0.18,
+      "anchor": { "x": 0.5, "y": 0.5 },
+      "rotation": -5,
+      "zIndex": 24,
+      "placementType": "airborne",
+      "imageVariant": "flight",
+      "label": { "x": 0.31, "y": 0.405 },
+      "alternatives": [
+        { "x": 0.43, "y": 0.255, "rotation": 3 },
+        { "x": 0.2, "y": 0.25, "rotation": -7 }
+      ]
+    },
+    "Pica pica_Eurasian Magpie": {
+      "x": 0.14,
+      "y": 0.885,
+      "size": 0.18,
+      "anchor": { "x": 0.42, "y": 0.57 },
+      "rotation": -1,
+      "zIndex": 22,
+      "placementType": "ground",
+      "imageVariant": "still",
+      "label": { "x": 0.15, "y": 0.965 },
+      "alternatives": [
+        { "x": 0.42, "y": 0.83, "rotation": 2 },
+        { "x": 0.68, "y": 0.9, "rotation": -2 }
+      ]
+    },
+    "Coloeus monedula_Eurasian Jackdaw": {
+      "x": 0.59,
+      "y": 0.235,
+      "size": 0.225,
+      "anchor": { "x": 0.5, "y": 0.5 },
+      "rotation": 6,
+      "zIndex": 23,
+      "placementType": "airborne",
+      "imageVariant": "flight",
+      "label": { "x": 0.59, "y": 0.31 },
+      "alternatives": [
+        { "x": 0.75, "y": 0.27, "rotation": -4 },
+        { "x": 0.52, "y": 0.15, "rotation": 4 }
+      ]
+    },
+    "Corvus monedula_Eurasian Jackdaw": {
+      "x": 0.59,
+      "y": 0.235,
+      "size": 0.225,
+      "anchor": { "x": 0.5, "y": 0.5 },
+      "rotation": 6,
+      "zIndex": 23,
+      "placementType": "airborne",
+      "imageVariant": "flight",
+      "label": { "x": 0.59, "y": 0.31 },
+      "alternatives": [
+        { "x": 0.75, "y": 0.27, "rotation": -4 },
+        { "x": 0.52, "y": 0.15, "rotation": 4 }
+      ]
+    }
+  }
+}

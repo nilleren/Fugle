@@ -20,6 +20,8 @@ class SpeciesClip:
     species_name: str
     filename: str
     source_recording: str
+    detection_start_time: float
+    detection_end_time: float
     start_time: float
     end_time: float
     confidence: float
@@ -148,6 +150,8 @@ def save_latest_species_clips(
             species_name=species_name,
             filename=filename,
             source_recording=audio_path.name,
+            detection_start_time=float(detection.start_time),
+            detection_end_time=float(detection.end_time),
             start_time=clip_start,
             end_time=clip_end,
             confidence=float(detection.confidence),
@@ -157,6 +161,8 @@ def save_latest_species_clips(
             "species_name": clip.species_name,
             "filename": clip.filename,
             "source_recording": clip.source_recording,
+            "detection_start_time": clip.detection_start_time,
+            "detection_end_time": clip.detection_end_time,
             "start_time": clip.start_time,
             "end_time": clip.end_time,
             "confidence": clip.confidence,
