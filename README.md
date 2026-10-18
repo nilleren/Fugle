@@ -127,6 +127,9 @@ Dashboardet har en knap til at nulstille `config.toml` til denne default.
 fra dashboardets indstillinger.
 `wall.eink_background` styrer baggrundsfarven i det genererede E-ink-billede
 og kan vaelges med farvevaelgeren under indstillinger.
+Hvis `site.display_mode` er `terrace`, bruger `/eink.jpg` og `/eink.png` den
+samme terrassebaggrund, fugleplaceringer og forgrund som browservisningen.
+De oevrige visninger bruger fortsat den simple E-ink-collage.
 
 `device = 0` betyder Windows' standard-input. Hvis du vil bruge en bestemt
 USB-mikrofon, saa find dens nummer med `--list` og ret `device`.
@@ -319,6 +322,18 @@ Aabn mobilstatistikken:
 ```text
 http://127.0.0.1:8000/stats
 ```
+
+Aabn terrassevisningen:
+
+```text
+http://127.0.0.1:8000/terrasse
+```
+
+Terrassevisningen bruger de samme arter, filtre og tidsvinduer som
+vaegvisningen. Placeringerne ligger i
+`src/fuglestation/static/terrace-placements.json`. Tilfoej `?debug=1` for at
+vise koordinatgitteret, flytte fugle med mus, touch eller piletaster og kopiere
+den opdaterede konfiguration.
 
 Websiden viser de seneste detektioner fra SQLite. API'et kan ogsaa kaldes
 direkte:

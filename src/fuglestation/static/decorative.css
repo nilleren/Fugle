@@ -1,0 +1,76 @@
+.decorative-page {
+  background:
+    radial-gradient(circle at 9% 12%, rgba(112, 126, 74, 0.12), transparent 22%),
+    radial-gradient(circle at 91% 88%, rgba(135, 92, 54, 0.1), transparent 24%),
+    var(--bg);
+}
+
+.decorative-wall {
+  position: relative;
+  z-index: 1;
+}
+
+.decorative-wall .bird-collage {
+  margin-bottom: clamp(100px, 20vh, 220px);
+  margin-inline: clamp(96px, 18vw, 260px);
+}
+
+.decorative-wall .wall-header h1::after {
+  background: var(--ink);
+  content: "";
+  display: block;
+  height: 1px;
+  margin: clamp(14px, 2vw, 24px) auto 0;
+  opacity: 0.28;
+  width: clamp(90px, 14vw, 180px);
+}
+
+.decorative-foreground {
+  --decorative-frame-height: min(100vh, 133.333333vw);
+  inset: 0;
+  pointer-events: none;
+  position: fixed;
+  user-select: none;
+  z-index: 5;
+}
+
+.decorative-foreground-side {
+  bottom: 0;
+  height: var(--decorative-frame-height);
+  overflow: hidden;
+  position: absolute;
+}
+
+.decorative-foreground-side img {
+  display: block;
+  height: var(--decorative-frame-height);
+  max-width: none;
+  position: absolute;
+  top: 0;
+  width: auto;
+}
+
+.decorative-foreground-left {
+  left: 0;
+  width: calc(var(--decorative-frame-height) * 0.4944751381);
+}
+
+.decorative-foreground-left img {
+  left: 0;
+}
+
+.decorative-foreground-right {
+  right: 0;
+  width: calc(var(--decorative-frame-height) * 0.2555248619);
+}
+
+.decorative-foreground-right img {
+  right: 0;
+}
+
+@media (max-width: 700px) {
+  .decorative-wall .bird-collage {
+    margin-bottom: 18vh;
+    margin-inline: 18vw;
+  }
+}

@@ -1,5 +1,6 @@
 [site]
 title = "Fuglene i haven"
+display_mode = "simple"
 
 [audio]
 # Current USB microphone on the Raspberry Pi.

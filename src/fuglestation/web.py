@@ -31,7 +31,11 @@ from fuglestation.database import (
     get_species_statistics,
     get_species_statistics_for_name,
 )
-from fuglestation.eink_image import render_eink_wall_image
+from fuglestation.eink_image import (
+    render_eink_decorative_image,
+    render_eink_terrace_image,
+    render_eink_wall_image,
+)
 from fuglestation.record_audio import build_output_path
 from fuglestation.record_audio import Microphone
 from fuglestation.record_audio import find_preferred_microphone
@@ -47,6 +51,9 @@ DEFAULT_CONFIG_PATH = Path("config.default.toml")
 STATIC_DIR = Path(__file__).parent / "static"
 ASSETS_DIR = Path("assets")
 BIRD_ASSETS_DIR = ASSETS_DIR / "birds"
+TERRACE_ASSETS_DIR = ASSETS_DIR / "terrace"
+DECORATIVE_ASSETS_DIR = ASSETS_DIR / "decorative"
+TERRACE_PLACEMENTS_PATH = STATIC_DIR / "terrace-placements.json"
 SCHEDULER_LOG_PATH = Path("data/scheduler.log")
 TEST_RECORDING_SECONDS = 3
 DEFAULT_WALL_MAX_SPECIES = 18
@@ -59,7 +66,9 @@ DEFAULT_WALL_SIZE_MODE = "common"
 DEFAULT_WALL_MIN_CONFIDENCE = 0.5
 DEFAULT_WALL_EINK_BACKGROUND = "#FBF2D6"
 DEFAULT_SITE_TITLE = "Fuglene i haven"
+DEFAULT_DISPLAY_MODE = "simple"
 WALL_SIZE_MODES = {"equal", "common", "rare"}
+DISPLAY_MODES = {"simple", "terrace", "decorative"}
 scheduler_process: subprocess.Popen | None = None
 
 
@@ -73,6 +82,7 @@ class RuntimeSettingsUpdate(BaseModel):
     """Request body for core station runtime settings."""
 
     site_title: str
+    display_mode: str = DEFAULT_DISPLAY_MODE
     duration_seconds: int
     recordings_to_keep: int
     birdnet_min_confidence: float
@@ -450,7 +460,11 @@ def load_site_config(config: dict[str, object]) -> dict[str, str]:
     if not isinstance(title, str) or not title.strip():
         title = DEFAULT_SITE_TITLE
 
-    return {"title": title.strip()}
+    display_mode = site_config.get("display_mode", DEFAULT_DISPLAY_MODE)
+    if not isinstance(display_mode, str) or display_mode not in DISPLAY_MODES:
+        display_mode = DEFAULT_DISPLAY_MODE
+
+    return {"title": title.strip(), "display_mode": display_mode}
 
 
 def load_birdnet_runtime_config(config: dict[str, object]) -> dict[str, float]:
@@ -520,6 +534,7 @@ def wall_payload(
     return {
         "count": len(species_summary),
         "site_title": site_config["title"],
+        "display_mode": site_config["display_mode"],
         "min_confidence": wall_min_confidence,
         "limit": wall_limit,
         "recent_minutes": wall_recent_minutes,
@@ -571,9 +586,29 @@ def scheduler_response(message: str) -> dict[str, object]:
 
 @app.get("/")
 def wall_root() -> FileResponse:
-    """Serve the calm fullscreen wall display as the front page."""
+    """Serve the configured browser display as the front page."""
+
+    display_mode = load_site_config(load_config(CONFIG_PATH))["display_mode"]
+    display_files = {
+        "simple": "wall.html",
+        "terrace": "terrace.html",
+        "decorative": "decorative.html",
+    }
+    return FileResponse(STATIC_DIR / display_files[display_mode])
+
+
+@app.get("/view/simple")
+def simple_view() -> FileResponse:
+    """Serve the simple wall directly, independently of the configured mode."""
 
     return FileResponse(STATIC_DIR / "wall.html")
+
+
+@app.get("/view/decorative")
+def decorative_view() -> FileResponse:
+    """Serve the decorative wall directly for preview and calibration."""
+
+    return FileResponse(STATIC_DIR / "decorative.html")
 
 
 @app.get("/settings")
@@ -596,6 +631,14 @@ def species_stats() -> FileResponse:
     """Serve the mobile-optimized single-species statistics display."""
 
     return FileResponse(STATIC_DIR / "species_stats.html")
+
+
+@app.get("/terrasse")
+@app.get("/terrasse/")
+def terrace() -> FileResponse:
+    """Serve the illustrated terrace display without changing the front page."""
+
+    return FileResponse(STATIC_DIR / "terrace.html")
 
 
 @app.get("/api/detections")
@@ -870,10 +913,16 @@ def api_wall(
     limit: int | None = Query(default=None, ge=1, le=60),
     min_confidence: float | None = Query(default=None, ge=0.0, le=1.0),
     recent_minutes: int | None = Query(default=None, ge=1, le=10080),
+    stable_images: bool = Query(default=False),
 ) -> dict[str, object]:
     """Return species data shaped for the wall display."""
 
-    return wall_payload(limit, min_confidence, recent_minutes)
+    return wall_payload(
+        limit,
+        min_confidence,
+        recent_minutes,
+        stable_images=stable_images,
+    )
 
 
 @lru_cache(maxsize=32)
@@ -888,6 +937,28 @@ def render_cached_eink_image(
     """Render an eInk image once for each distinct visible wall state."""
 
     payload = json.loads(payload_json)
+    if payload.get("display_mode") == "terrace":
+        return render_eink_terrace_image(
+            payload,
+            BIRD_ASSETS_DIR,
+            TERRACE_ASSETS_DIR,
+            width,
+            height,
+            landscape=landscape,
+            output_format=output_format,
+            use_spectra_palette=use_spectra_palette,
+        )
+    if payload.get("display_mode") == "decorative":
+        return render_eink_decorative_image(
+            payload,
+            BIRD_ASSETS_DIR,
+            DECORATIVE_ASSETS_DIR,
+            width,
+            height,
+            landscape=landscape,
+            output_format=output_format,
+            use_spectra_palette=use_spectra_palette,
+        )
     return render_eink_wall_image(
         payload,
         BIRD_ASSETS_DIR,
@@ -935,6 +1006,13 @@ def eink_response(
         recent_minutes,
         stable_images=True,
     )
+    if payload.get("display_mode") == "terrace":
+        try:
+            payload["terrace_placements"] = json.loads(
+                TERRACE_PLACEMENTS_PATH.read_text(encoding="utf-8")
+            )
+        except (OSError, json.JSONDecodeError):
+            payload["terrace_placements"] = {}
     # The request timestamp is useful to the browser API, but it is not visible in
     # the eInk image and must not invalidate an otherwise unchanged render.
     payload.pop("updated_at", None)
@@ -1398,6 +1476,11 @@ def api_config_runtime_settings(update: RuntimeSettingsUpdate) -> dict[str, obje
             status_code=400,
             detail="Titel skal være mellem 1 og 80 tegn.",
         )
+    if update.display_mode not in DISPLAY_MODES:
+        raise HTTPException(
+            status_code=400,
+            detail="Visning skal være simple, terrace eller decorative.",
+        )
     if update.duration_seconds < 1 or update.duration_seconds > 300:
         raise HTTPException(
             status_code=400,
@@ -1449,7 +1532,10 @@ def api_config_runtime_settings(update: RuntimeSettingsUpdate) -> dict[str, obje
         write_config_values(
             CONFIG_PATH,
             {
-                "site": {"title": site_title},
+                "site": {
+                    "title": site_title,
+                    "display_mode": update.display_mode,
+                },
                 "audio": {
                     "duration_seconds": update.duration_seconds,
                     "recordings_to_keep": update.recordings_to_keep,
@@ -1478,6 +1564,7 @@ def api_config_runtime_settings(update: RuntimeSettingsUpdate) -> dict[str, obje
     return {
         "message": "Indstillinger gemt.",
         "site_title": site_title,
+        "display_mode": update.display_mode,
         "duration_seconds": update.duration_seconds,
         "recordings_to_keep": update.recordings_to_keep,
         "birdnet_min_confidence": birdnet_min_confidence,

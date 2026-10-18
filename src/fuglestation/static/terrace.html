@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="da">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#ead29f" />
+    <title>Fuglene på Lerbjergvej</title>
+    <link rel="icon" href="/static/favicon.ico?v=20260818-body" sizes="any" />
+    <link rel="icon" href="/static/favicon.png?v=20260818-body" type="image/png" />
+    <link rel="apple-touch-icon" href="/static/apple-touch-icon.png?v=20260818-body" />
+    <link rel="stylesheet" href="/static/terrace.css?v=20261018-wall-settings" />
+  </head>
+  <body>
+    <nav class="terrace-nav" aria-label="Fuglestationen">
+      <a href="/">Fuglevæg</a>
+      <span aria-hidden="true">·</span>
+      <a href="/stats">Statistik</a>
+    </nav>
+
+    <main class="terrace-page">
+      <header class="terrace-header">
+        <h1>Fuglene på Lerbjergvej</h1>
+        <p id="terrace-status" class="terrace-status" aria-live="polite">
+          Henter de seneste registreringer…
+        </p>
+      </header>
+
+      <section class="scene-shell" aria-label="Registrerede fugle på terrassen">
+        <div id="terrace-scene" class="terrace-scene">
+          <img
+            class="scene-background"
+            src="/assets/terrace/terrasse-baggrund.jpg"
+            alt="Illustreret terrasse med vandfad, planter og træhegn"
+          />
+          <div id="bird-layer" class="bird-layer" aria-live="polite"></div>
+          <img
+            class="scene-foreground"
+            src="/assets/terrace/terrasse-forgrund.png?v=20261018-2"
+            alt=""
+            aria-hidden="true"
+          />
+          <div id="label-layer" class="label-layer"></div>
+          <div class="debug-grid" aria-hidden="true"></div>
+        </div>
+      </section>
+
+      <section id="debug-panel" class="debug-panel" hidden>
+        <div class="debug-heading">
+          <div>
+            <p class="eyebrow">Kalibrering</p>
+            <h2>Placering af fugle</h2>
+          </div>
+          <button id="copy-config" type="button">Kopiér konfiguration</button>
+        </div>
+
+        <label>
+          Fugl
+          <select id="debug-species"></select>
+        </label>
+        <label>
+          Størrelse
+          <input id="debug-size" type="range" min="0.05" max="0.5" step="0.005" />
+          <output id="debug-size-value"></output>
+        </label>
+        <label>
+          Rotation
+          <input id="debug-rotation" type="range" min="-30" max="30" step="0.5" />
+          <output id="debug-rotation-value"></output>
+        </label>
+        <pre id="debug-coordinates"></pre>
+        <p class="debug-help">
+          Træk den valgte fugl med mus eller touch. Piletaster flytter 0,1 %,
+          og Shift + piletast flytter 1 %.
+        </p>
+      </section>
+    </main>
+
+    <script src="/static/terrace.js?v=20261018-wall-settings"></script>
+  </body>
+</html>

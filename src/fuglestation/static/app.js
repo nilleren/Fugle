@@ -42,6 +42,7 @@ const refreshSpeciesClipsButton = document.querySelector(
 );
 const runtimeSettingsForm = document.querySelector("#runtime-settings-form");
 const siteTitleSettingEl = document.querySelector("#site-title-setting");
+const displayModeSettingEl = document.querySelector("#display-mode-setting");
 const durationSettingEl = document.querySelector("#duration-setting");
 const recordingsToKeepSettingEl = document.querySelector(
   "#recordings-to-keep-setting",
@@ -424,6 +425,7 @@ async function loadConfig() {
     const config = await response.json();
 
     siteTitleSettingEl.value = config.site.title;
+    displayModeSettingEl.value = config.site.display_mode || "simple";
     updateSettingsPageTitle(config.site.title);
     configPathEl.textContent = config.config_path;
     configDeviceEl.textContent = config.audio.device_name
@@ -614,6 +616,7 @@ async function saveRuntimeSettings(event) {
 
   try {
     const siteTitle = siteTitleSettingEl.value.trim();
+    const displayMode = displayModeSettingEl.value;
     const durationSeconds = Number(durationSettingEl.value);
     const recordingsToKeep = Number(recordingsToKeepSettingEl.value);
     const birdnetMinConfidence = Number(birdnetConfidenceSettingEl.value);
@@ -633,6 +636,7 @@ async function saveRuntimeSettings(event) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         site_title: siteTitle,
+        display_mode: displayMode,
         duration_seconds: durationSeconds,
         recordings_to_keep: recordingsToKeep,
         birdnet_min_confidence: birdnetMinConfidence,
@@ -654,9 +658,14 @@ async function saveRuntimeSettings(event) {
       throw new Error(result.detail || `HTTP ${response.status}`);
     }
 
+    const displayModeNames = {
+      simple: "enkel fuglevæg",
+      terrace: "terrassen",
+      decorative: "enkel med dekoration",
+    };
     runtimeSettingsStatusEl.textContent = `${result.message} Titel "${
       result.site_title
-    }", ${
+    }", visning ${displayModeNames[result.display_mode] || result.display_mode}, ${
       result.duration_seconds
     } sek., gemmer ${result.recordings_to_keep} fulde optagelser, registrering ${formatPercent(
       result.birdnet_min_confidence,

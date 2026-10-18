@@ -93,6 +93,14 @@
             />
           </label>
           <label>
+            Visning
+            <select id="display-mode-setting">
+              <option value="simple">Enkel fuglevæg</option>
+              <option value="terrace">Terrassen</option>
+              <option value="decorative">Enkel med dekoration</option>
+            </select>
+          </label>
+          <label>
             Optagelængde
             <input
               id="duration-setting"
@@ -168,7 +176,7 @@
           </label>
           <label class="checkbox-setting">
             <input id="wall-show-names-setting" type="checkbox" />
-            Vis fuglenavne på væggen
+            Vis fuglenavne
           </label>
           <label class="checkbox-setting">
             <input id="wall-show-latin-names-setting" type="checkbox" />
@@ -176,7 +184,7 @@
           </label>
           <label class="checkbox-setting">
             <input id="wall-show-footer-setting" type="checkbox" />
-            Vis bundtekst på væggen
+            Vis sidst hørt og opdateringstid
           </label>
           <label class="checkbox-setting">
             <input id="wall-show-shadows-setting" type="checkbox" />
@@ -288,6 +296,6 @@
       </section>
     </main>
 
-    <script src="/static/app.js?v=20260830-delete-species-clip"></script>
+    <script src="/static/app.js?v=20261018-display-mode"></script>
   </body>
 </html>
